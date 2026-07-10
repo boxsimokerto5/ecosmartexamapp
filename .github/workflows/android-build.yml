@@ -1,0 +1,107 @@
+name: Build Android APK & AAB
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Setup Capacitor Android
+        run: |
+          npx cap add android
+
+      - name: Generate Custom Icons & Splash Screens
+        run: |
+          npx @capacitor/assets generate --android
+
+      - name: Sync Capacitor to Native Android
+        run: |
+          npx cap sync android
+
+      - name: Generate Automated Signing Keystore
+        run: |
+          keytool -genkey -v \
+            -keystore my-release-key.jks \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -alias my-key-alias \
+            -storepass mysecretpassword \
+            -keypass mysecretpassword \
+            -dname "CN=EcoSmartExam, OU=EcoSmartExam, O=EcoSmartExam, L=Jakarta, S=DKI, C=ID"
+
+      - name: Build Android Release (APK & AAB)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease
+
+      - name: Sign APK & AAB
+        run: |
+          # 1. Sign the APK using apksigner
+          APKSIGNER_PATH=$(find $ANDROID_SDK_ROOT/build-tools -name apksigner | sort -V | tail -n 1)
+          echo "Using apksigner at: $APKSIGNER_PATH"
+          
+          # Find the unsigned release APK
+          UNSIGNED_APK=$(find android/app/build/outputs/apk/release -name "*-unsigned.apk" -o -name "*release.apk" | head -n 1)
+          echo "Found unsigned APK: $UNSIGNED_APK"
+          
+          $APKSIGNER_PATH sign \
+            --ks my-release-key.jks \
+            --ks-key-alias my-key-alias \
+            --ks-pass pass:mysecretpassword \
+            --key-pass pass:mysecretpassword \
+            --out EcoSmartExam-Release-Signed.apk \
+            $UNSIGNED_APK
+
+          # 2. Sign the AAB in-place and rename
+          UNSIGNED_AAB=$(find android/app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          echo "Found AAB: $UNSIGNED_AAB"
+          
+          jarsigner \
+            -keystore my-release-key.jks \
+            -storepass mysecretpassword \
+            -keypass mysecretpassword \
+            $UNSIGNED_AAB \
+            my-key-alias
+            
+          cp $UNSIGNED_AAB EcoSmartExam-Release-Signed.aab
+
+      - name: Upload Signed APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EcoSmartExam-Release-APK
+          path: EcoSmartExam-Release-Signed.apk
+
+      - name: Upload Signed AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EcoSmartExam-Release-AAB
+          path: EcoSmartExam-Release-Signed.aab

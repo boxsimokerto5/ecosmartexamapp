@@ -1,0 +1,6 @@
+{
+  "name": "Eco Smart Exam",
+  "description": "Eco Smart Exam - Aplikasi ujian online modern, ramah lingkungan, dengan dasbor kepala sekolah, guru, siswa, pemantauan real-time, dan cetak PDF hasil evaluasi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

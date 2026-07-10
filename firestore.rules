@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Students collection rules
+    match /students/{studentId} {
+      allow read, write: if true;
+    }
+
+    // Exams collection rules
+    match /exams/{examId} {
+      allow read, write: if true;
+    }
+
+    // Results collection rules
+    match /results/{resultId} {
+      allow read, write: if true;
+    }
+
+    // Notifications collection rules
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    // Classes collection rules
+    match /classes/{classId} {
+      allow read, write: if true;
+    }
+
+    // Classroom Sessions collection rules
+    match /classroom_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    // Schools collection rules
+    match /schools/{schoolId} {
+      allow read, write: if true;
+    }
+
+    // Principals collection rules
+    match /principals/{principalId} {
+      allow read, write: if true;
+    }
+
+    // Teachers collection rules
+    match /teachers/{teacherId} {
+      allow read, write: if true;
+    }
+  }
+}

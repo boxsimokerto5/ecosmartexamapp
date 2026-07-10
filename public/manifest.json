@@ -1,0 +1,27 @@
+{
+  "name": "Eco Smart Exam",
+  "short_name": "EcoSmartExam",
+  "description": "Aplikasi Ujian Ramah Lingkungan untuk Siswa, Guru, dan Kepala Sekolah",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa_icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/pwa_icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

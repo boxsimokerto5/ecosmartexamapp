@@ -1,0 +1,168 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Student user credential and class info",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "class": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "name", "password", "class"]
+    },
+    "Exam": {
+      "title": "Exam",
+      "description": "Exam definition with list of questions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "duration": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "questions": { "type": "array" }
+      },
+      "required": ["id", "title", "duration", "status"]
+    },
+    "Result": {
+      "title": "Result",
+      "description": "Student attempt/result for an exam",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "examId": { "type": "string" },
+        "examTitle": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentClass": { "type": "string" },
+        "answers": { "type": "object" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "correctCount": { "type": "number" },
+        "submittedAt": { "type": "string" },
+        "startedAt": { "type": "string" },
+        "status": { "type": "string" },
+        "durationSpent": { "type": "number" }
+      },
+      "required": ["id", "examId", "studentId", "status"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Notifications for students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "type": { "type": "string" }
+      },
+      "required": ["id", "studentId", "title", "message", "read", "type"]
+    },
+    "ClassroomSession": {
+      "title": "ClassroomSession",
+      "description": "A session linking a teacher to a specific classroom",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "subject": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "classId", "className", "teacherId", "teacherName", "subject", "schoolId", "status", "createdAt"]
+    },
+    "School": {
+      "title": "School",
+      "description": "School entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Principal": {
+      "title": "Principal",
+      "description": "School principal profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "name", "password", "schoolId", "schoolName"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "School teacher profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "classes": { "type": "array" }
+      },
+      "required": ["id", "username", "name", "password", "schoolId", "schoolName"]
+    }
+  },
+  "firestore": {
+    "students": {
+      "schema": "Student",
+      "description": "Students collection"
+    },
+    "exams": {
+      "schema": "Exam",
+      "description": "Exams collection"
+    },
+    "results": {
+      "schema": "Result",
+      "description": "Exam attempts and scores"
+    },
+    "notifications": {
+      "schema": "Notification",
+      "description": "Student notifications"
+    },
+    "classes": {
+      "schema": "object",
+      "description": "Official school classes"
+    },
+    "classroom_sessions": {
+      "schema": "ClassroomSession",
+      "description": "Teacher-classroom links and active sessions"
+    },
+    "schools": {
+      "schema": "School",
+      "description": "Schools database"
+    },
+    "principals": {
+      "schema": "Principal",
+      "description": "Principals database"
+    },
+    "teachers": {
+      "schema": "Teacher",
+      "description": "Teachers database"
+    }
+  }
+}
