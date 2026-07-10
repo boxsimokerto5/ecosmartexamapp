@@ -4,7 +4,7 @@ import {
   getDocs, 
   writeBatch, 
   doc 
-} from "firebase/firestore";
+} from "./firebase";
 import { School, Teacher, Student, Exam, Result, Notification, Principal, SchoolClass } from "../types";
 
 export const DEFAULT_SCHOOLS: School[] = [];

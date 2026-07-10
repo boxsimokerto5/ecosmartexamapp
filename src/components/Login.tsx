@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { checkUserLimit } from "../lib/userLimit";
 import { Student, Teacher, Principal } from "../types";
-import { LogIn, GraduationCap, School, AlertCircle, ShieldCheck, Award, MessageCircle } from "lucide-react";
+import { LogIn, GraduationCap, School, AlertCircle, ShieldCheck, Award, MessageCircle, FlaskConical } from "lucide-react";
 
 interface LoginProps {
   onLoginSuccess: (user: { 
@@ -272,6 +272,39 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
+  const handleDemoLogin = (demoRole: "siswa" | "guru" | "kepala_sekolah") => {
+    if (typeof window !== "undefined") {
+      window.__isDemoMode = true;
+    }
+    
+    if (demoRole === "siswa") {
+      onLoginSuccess({
+        role: "siswa",
+        id: "demo-budi",
+        name: "Budi Santoso (Demo)",
+        class: "XII-RPL-1",
+        schoolId: "demo-school-id",
+        schoolName: "SMK Merdeka Nusantara (Demo)"
+      });
+    } else if (demoRole === "guru") {
+      onLoginSuccess({
+        role: "guru",
+        id: "demo-guru",
+        name: "Widya Lestari, S.Pd (Demo)",
+        schoolId: "demo-school-id",
+        schoolName: "SMK Merdeka Nusantara (Demo)"
+      });
+    } else if (demoRole === "kepala_sekolah") {
+      onLoginSuccess({
+        role: "kepala_sekolah",
+        id: "demo-kepala",
+        name: "Dr. H. Ahmad Fauzi, M.Pd (Demo)",
+        schoolId: "demo-school-id",
+        schoolName: "SMK Merdeka Nusantara (Demo)"
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all duration-300 animate-fadeIn">
@@ -406,6 +439,45 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               {loading ? "Menghubungkan..." : "Masuk Sistem"}
             </button>
           </form>
+
+          {/* Try Demo Accounts section */}
+          <div className="mt-5 pt-5 border-t border-dashed border-slate-200">
+            <div className="flex items-center justify-center gap-1.5 mb-3">
+              <FlaskConical className="w-4 h-4 text-emerald-600 animate-pulse" />
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider text-center">
+                Mencoba Lingkungan Akun Demo
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => handleDemoLogin("siswa")}
+                className="py-3 px-1 bg-emerald-50/70 hover:bg-emerald-100/80 active:scale-95 border border-emerald-200/60 text-emerald-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
+              >
+                <GraduationCap className="w-5 h-5 text-emerald-600" />
+                <span>Siswa Demo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin("guru")}
+                className="py-3 px-1 bg-indigo-50/70 hover:bg-indigo-100/80 active:scale-95 border border-indigo-200/60 text-indigo-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
+              >
+                <GraduationCap className="w-5 h-5 text-indigo-600" />
+                <span>Guru Demo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin("kepala_sekolah")}
+                className="py-3 px-1 bg-amber-50/70 hover:bg-amber-100/80 active:scale-95 border border-amber-200/60 text-amber-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Award className="w-5 h-5 text-amber-600" />
+                <span>Kepala Demo</span>
+              </button>
+            </div>
+            <p className="text-[9px] text-center text-slate-400 mt-3 font-semibold leading-relaxed">
+              *Akun demo bersifat <span className="text-emerald-600 font-bold">temporary action</span>. Segala perubahan data (buat ujian, kerjakan, dll.) akan disetel ulang secara otomatis ketika Anda me-refresh halaman.
+            </p>
+          </div>
 
           {/* WhatsApp Registration Section */}
           <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col items-center text-center gap-3">

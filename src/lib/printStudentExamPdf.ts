@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { Exam, Result } from "../types";
-import { doc as firestoreDoc, getDoc } from "firebase/firestore";
+import { doc as firestoreDoc, getDoc } from "./firebase";
 import { db } from "./firebase";
 
 export async function generateStudentExamPDF(result: Result, exam: Exam) {

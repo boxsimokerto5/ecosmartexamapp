@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { Exam, Result } from "../types";
 import { X, CheckCircle2, AlertCircle, Clock, Award, FileText, Check, AlertTriangle, HelpCircle } from "lucide-react";

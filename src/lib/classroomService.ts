@@ -8,7 +8,7 @@ import {
   query, 
   where,
   getDoc
-} from "firebase/firestore";
+} from "./firebase";
 import { db } from "./firebase";
 import { Student, ClassroomSession, Exam } from "../types";
 

@@ -8,7 +8,7 @@ import {
   setDoc,
   doc,
   updateDoc
-} from "firebase/firestore";
+} from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { checkUserLimit } from "../lib/userLimit";
 import { Student, Exam, Result, Notification, School } from "../types";

@@ -47,6 +47,12 @@ export default function App() {
 
   const handleLogout = () => {
     setUser(null);
+    if (typeof window !== "undefined") {
+      window.__isDemoMode = false;
+      if (window.__resetDemoDb) {
+        window.__resetDemoDb();
+      }
+    }
   };
 
   if (showSplash) {

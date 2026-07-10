@@ -10,7 +10,7 @@ import {
   query,
   where,
   getDoc 
-} from "firebase/firestore";
+} from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { checkUserLimit, canAddUser } from "../lib/userLimit";
 import { Student, Exam, Result, Question, Notification, SchoolClass, ClassroomSession, School } from "../types";

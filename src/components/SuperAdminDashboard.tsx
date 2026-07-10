@@ -7,7 +7,7 @@ import {
   query, 
   where,
   deleteDoc
-} from "firebase/firestore";
+} from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { School, Teacher, Principal } from "../types";
 import { 

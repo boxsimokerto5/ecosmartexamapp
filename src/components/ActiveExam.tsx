@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc } from "../lib/firebase";
 import { db } from "../lib/firebase";
 import { Exam, Question, Result } from "../types";
 import { Clock, CheckSquare, ChevronLeft, ChevronRight, Send, HelpCircle, Image as ImageIcon, Maximize2, AlertTriangle, Award, Check, X, CheckCircle2, AlertCircle } from "lucide-react";
