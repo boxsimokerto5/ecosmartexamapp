@@ -24,7 +24,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install Dependencies
@@ -36,6 +36,13 @@ jobs:
       - name: Setup Capacitor Android
         run: |
           npx cap add android
+
+      - name: Configure Android Package Versioning
+        run: |
+          # Set versionName to 1.1 and versionCode to GitHub's run_number to enable direct Play Store updates
+          sed -i 's/versionCode [0-9]*/versionCode ${{ github.run_number }}/g' android/app/build.gradle
+          sed -i 's/versionName "[0-9.]*"/versionName "1.1"/g' android/app/build.gradle
+          echo "Configured package with versionCode: ${{ github.run_number }} and versionName: 1.1"
 
       - name: Generate Custom Icons & Splash Screens
         run: |
