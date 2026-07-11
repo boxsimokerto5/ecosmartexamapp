@@ -81,6 +81,53 @@ function DashboardTimer({ exam, result, onTimeout }: DashboardTimerProps) {
   );
 }
 
+interface CountdownTimerProps {
+  targetDate: Date;
+  onFinish?: () => void;
+}
+
+function CountdownTimer({ targetDate, onFinish }: CountdownTimerProps) {
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    return Math.max(0, targetDate.getTime() - Date.now());
+  });
+
+  useEffect(() => {
+    // Initial sync
+    setTimeLeft(Math.max(0, targetDate.getTime() - Date.now()));
+
+    const interval = setInterval(() => {
+      const diff = targetDate.getTime() - Date.now();
+      if (diff <= 0) {
+        clearInterval(interval);
+        setTimeLeft(0);
+        if (onFinish) onFinish();
+      } else {
+        setTimeLeft(diff);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  if (timeLeft <= 0) {
+    return <span className="font-bold text-emerald-600 animate-pulse">Dimulai! ✨</span>;
+  }
+
+  const seconds = Math.floor((timeLeft / 1000) % 60);
+  const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
+  const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+  const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+
+  return (
+    <span className="font-mono">
+      {days > 0 ? `${days}h ` : ""}
+      {hours.toString().padStart(2, "0")}:
+      {minutes.toString().padStart(2, "0")}:
+      {seconds.toString().padStart(2, "0")}
+    </span>
+  );
+}
+
 interface SiswaDashboardProps {
   user: { id: string; name: string; class?: string; schoolId: string; schoolName: string };
   onLogout: () => void;
@@ -426,6 +473,11 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
     return { isAvailable: true, statusText: "Sedang Berlangsung", buttonEnabled: true };
   };
 
+  const getExamStartDateTime = (exam: Exam): Date | null => {
+    if (!exam.scheduledDate || !exam.scheduledStartTime) return null;
+    return new Date(`${exam.scheduledDate}T${exam.scheduledStartTime}:00`);
+  };
+
   // Spotlight exam represents the next unsubmitted exam that is active/available today or has no schedule
   const spotlightExam = exams.find(e => {
     if (getExamStatus(e.id) === "submitted") return false;
@@ -437,6 +489,20 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
     // Only show in spotlight if scheduled date is today
     return e.scheduledDate === todayString;
   });
+
+  // Find all future exams that have not been started or submitted
+  const futureExams = exams.filter(e => {
+    if (getExamStatus(e.id) === "submitted" || getExamStatus(e.id) === "started") return false;
+    const startDateTime = getExamStartDateTime(e);
+    if (!startDateTime) return false;
+    return startDateTime.getTime() > Date.now();
+  });
+
+  const nextScheduledExam = [...futureExams].sort((a, b) => {
+    const timeA = getExamStartDateTime(a)?.getTime() ?? 0;
+    const timeB = getExamStartDateTime(b)?.getTime() ?? 0;
+    return timeA - timeB;
+  })[0];
 
   const handleStartSpotlight = () => {
     if (!spotlightExam) return;
@@ -721,9 +787,23 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
                     <span>🔒 Sudah Dikerjakan (Terkunci)</span>
                   </div>
                 ) : !getExamScheduleStatus(spotlightExam).buttonEnabled ? (
-                  <div className="w-full py-2.5 bg-slate-800/40 text-slate-150 font-bold text-xs uppercase tracking-wider rounded-2xl border border-slate-450/20 text-center z-10 flex items-center justify-center gap-1.5">
-                    <span>⏳ {getExamScheduleStatus(spotlightExam).statusText}</span>
-                  </div>
+                  (() => {
+                    const startDateTime = getExamStartDateTime(spotlightExam);
+                    const isFuture = startDateTime && startDateTime.getTime() > Date.now();
+                    return (
+                      <div className="w-full py-2.5 bg-slate-800/40 text-slate-150 font-bold text-xs uppercase tracking-wider rounded-2xl border border-slate-450/20 text-center z-10 flex items-center justify-center gap-1.5">
+                        <span>⏳</span>
+                        {isFuture ? (
+                          <span className="flex items-center gap-1">
+                            <span>Mulai dalam:</span>
+                            <CountdownTimer targetDate={startDateTime!} />
+                          </span>
+                        ) : (
+                          <span>{getExamScheduleStatus(spotlightExam).statusText}</span>
+                        )}
+                      </div>
+                    );
+                  })()
                 ) : getExamStatus(spotlightExam.id) === "started" ? (
                   <button
                     id="btn-spotlight-ikuti-ujian"
@@ -766,6 +846,33 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
           </div>
 
         </div>
+
+        {/* Next Scheduled Exam Real-Time Countdown Banner */}
+        {nextScheduledExam && (() => {
+          const startDateTime = getExamStartDateTime(nextScheduledExam);
+          if (!startDateTime) return null;
+          return (
+            <div className="bg-amber-50 border border-amber-200/60 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm animate-fadeIn">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 mt-0.5 animate-pulse">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm tracking-tight">Persiapan Ujian Terdekat!</h4>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Ujian <span className="font-bold text-indigo-600">"{nextScheduledExam.title}"</span> dijadwalkan pada <span className="font-semibold">{nextScheduledExam.scheduledDate}</span> pukul <span className="font-semibold">{nextScheduledExam.scheduledStartTime} WIB</span>.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white px-4 py-2.5 rounded-xl border border-amber-200/60 flex items-center gap-3 shrink-0 self-start sm:self-center">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Dimulai Dalam:</span>
+                <div className="text-base font-black tracking-tight text-rose-500">
+                  <CountdownTimer targetDate={startDateTime} />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-200">
@@ -850,9 +957,23 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
                                       🔒 Terkunci
                                     </span>
                                   ) : !sched.buttonEnabled ? (
-                                    <span className="bg-slate-800/40 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">
-                                      ⏳ {sched.statusText}
-                                    </span>
+                                    (() => {
+                                      const startDateTime = getExamStartDateTime(exam);
+                                      const isFuture = startDateTime && startDateTime.getTime() > Date.now();
+                                      return (
+                                        <span className="bg-slate-800/40 text-white px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0 flex items-center gap-1.5 shadow-sm">
+                                          <span>⏳</span>
+                                          {isFuture ? (
+                                            <>
+                                              <span>Mulai:</span>
+                                              <CountdownTimer targetDate={startDateTime!} />
+                                            </>
+                                          ) : (
+                                            <span>{sched.statusText}</span>
+                                          )}
+                                        </span>
+                                      );
+                                    })()
                                   ) : status === "started" ? (
                                     results.find(r => r.examId === exam.id && r.status === "started") ? (
                                       <DashboardTimer
@@ -968,9 +1089,22 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
                                 </div>
                                 <div className="flex items-center justify-between text-xs pt-1">
                                   <span className="text-slate-400 font-medium">⏱️ {exam.duration}m • {exam.questions.length} Soal</span>
-                                  <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
-                                    <span>⏳ Belum Dibuka</span>
-                                  </span>
+                                  {(() => {
+                                    const startDateTime = getExamStartDateTime(exam);
+                                    if (startDateTime && startDateTime.getTime() > Date.now()) {
+                                      return (
+                                        <span className="text-xs font-bold text-rose-500 flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded-xl shadow-2xs border border-rose-100">
+                                          <span>⏳ Mulai:</span>
+                                          <CountdownTimer targetDate={startDateTime} />
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+                                        <span>⏳ Belum Dibuka</span>
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
