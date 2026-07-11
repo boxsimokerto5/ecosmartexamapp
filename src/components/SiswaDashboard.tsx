@@ -138,9 +138,10 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
         const exam = { ...doc.data(), id: doc.id } as Exam;
         
         // Match targeted classes with normalized case-insensitive and trimmed strings
-        const isTargetedClass = exam.classes && studentClass && exam.classes.some(
+        // If an exam has no classes specified, it is available to all classes (Semua Kelas)
+        const isTargetedClass = !exam.classes || exam.classes.length === 0 || (studentClass && exam.classes.some(
           c => c.trim().toLowerCase() === studentClass.trim().toLowerCase()
-        );
+        ));
 
         // Only show the exam if it is explicitly assigned to the student's class
         if (isTargetedClass) {
@@ -286,6 +287,13 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
   const handleVerifyTokenAndStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tokenExam) return;
+
+    // Enforce schedule limits!
+    const sched = getExamScheduleStatus(tokenExam);
+    if (!sched.buttonEnabled) {
+      setTokenError(`Ujian ini belum dapat dimulai: ${sched.statusText}`);
+      return;
+    }
 
     const actualToken = (tokenExam.token || "").trim().toUpperCase();
     const enteredToken = tokenInput.trim().toUpperCase();

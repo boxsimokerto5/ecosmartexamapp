@@ -654,12 +654,22 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
     if (!editingExamSchedule) return;
 
     try {
-      await updateDoc(doc(db, "exams", editingExamSchedule.id), {
+      const updates: any = {
         scheduledDate: scheduleForm.scheduledDate,
         scheduledStartTime: scheduleForm.scheduledStartTime,
         scheduledEndTime: scheduleForm.scheduledEndTime
-      });
-      alert("Jadwal ujian berhasil diperbarui!");
+      };
+
+      if (scheduleForm.scheduledDate) {
+        updates.status = "active";
+      }
+
+      await updateDoc(doc(db, "exams", editingExamSchedule.id), updates);
+      alert(
+        scheduleForm.scheduledDate
+          ? "Jadwal berhasil disimpan dan status ujian otomatis diaktifkan (dirilis)!"
+          : "Jadwal berhasil diperbarui!"
+      );
       setEditingExamSchedule(null);
     } catch (err) {
       console.error("Gagal memperbarui jadwal ujian:", err);
