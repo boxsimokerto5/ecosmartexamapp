@@ -78,6 +78,9 @@ export interface Exam {
   token?: string; // proctor token required to start exam
   classes?: string[]; // list of classroom names targeted for this exam
   teacherId?: string; // teacher who created/assigned this exam
+  scheduledDate?: string;
+  scheduledStartTime?: string;
+  scheduledEndTime?: string;
 }
 
 export interface ClassroomSession {

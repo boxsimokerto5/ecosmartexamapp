@@ -24,7 +24,8 @@ import {
   HelpCircle,
   PlayCircle,
   History,
-  BarChart2
+  BarChart2,
+  Calendar
 } from "lucide-react";
 import ActiveExam from "./ActiveExam";
 import AttemptDetailModal from "./AttemptDetailModal";
@@ -141,8 +142,8 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
           c => c.trim().toLowerCase() === studentClass.trim().toLowerCase()
         );
 
-        // If an exam has targeted classes, only show to students in those classes (or if no classes are specified, show to everyone in the school)
-        if (!exam.classes || exam.classes.length === 0 || isTargetedClass) {
+        // Only show the exam if it is explicitly assigned to the student's class
+        if (isTargetedClass) {
           list.push(exam);
         }
       });
@@ -371,8 +372,61 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
     return `${secs}s`;
   };
 
-  // Spotlight exam represents the next unsubmitted exam
-  const spotlightExam = exams.find(e => getExamStatus(e.id) !== "submitted") || exams[0];
+  const getLocalDateTimeValues = () => {
+    const now = new Date();
+    
+    // Format YYYY-MM-DD
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const date = String(now.getDate()).padStart(2, "0");
+    const todayString = `${year}-${month}-${date}`;
+    
+    // Format HH:MM
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const currentTimeString = `${hours}:${minutes}`;
+    
+    return { todayString, currentTimeString };
+  };
+
+  const getExamScheduleStatus = (exam: Exam) => {
+    if (!exam.scheduledDate) {
+      return { isAvailable: true, statusText: "Tersedia", buttonEnabled: true };
+    }
+
+    const { todayString, currentTimeString } = getLocalDateTimeValues();
+
+    if (exam.scheduledDate < todayString) {
+      return { isAvailable: false, statusText: "Sudah Berakhir (Lampau)", buttonEnabled: false };
+    }
+
+    if (exam.scheduledDate > todayString) {
+      return { isAvailable: false, statusText: `Terjadwal: ${exam.scheduledDate} Pukul ${exam.scheduledStartTime || "00:00"}`, buttonEnabled: false };
+    }
+
+    // It is today!
+    if (exam.scheduledStartTime && currentTimeString < exam.scheduledStartTime) {
+      return { isAvailable: false, statusText: `Belum Dimulai (Mulai Jam ${exam.scheduledStartTime} WIB)`, buttonEnabled: false };
+    }
+
+    if (exam.scheduledEndTime && currentTimeString > exam.scheduledEndTime) {
+      return { isAvailable: false, statusText: "Waktu Ujian Habis", buttonEnabled: false };
+    }
+
+    return { isAvailable: true, statusText: "Sedang Berlangsung", buttonEnabled: true };
+  };
+
+  // Spotlight exam represents the next unsubmitted exam that is active/available today or has no schedule
+  const spotlightExam = exams.find(e => {
+    if (getExamStatus(e.id) === "submitted") return false;
+    
+    // If it has no schedule, it's open and always available today
+    if (!e.scheduledDate) return true;
+    
+    const { todayString } = getLocalDateTimeValues();
+    // Only show in spotlight if scheduled date is today
+    return e.scheduledDate === todayString;
+  });
 
   const handleStartSpotlight = () => {
     if (!spotlightExam) return;
@@ -385,6 +439,14 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
       alert("Ujian ini sudah dikerjakan dan terkunci!");
       return;
     }
+
+    // Enforce schedule limits!
+    const sched = getExamScheduleStatus(spotlightExam);
+    if (!sched.buttonEnabled) {
+      alert(`Ujian ini belum dapat dimulai: ${sched.statusText}`);
+      return;
+    }
+
     if (status === "started") {
       setActiveExam(spotlightExam);
     } else {
@@ -393,6 +455,17 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
       setTokenError("");
     }
   };
+
+  const { todayString } = getLocalDateTimeValues();
+
+  const activeTodayExams = exams.filter(e => {
+    if (!e.scheduledDate) return true;
+    return e.scheduledDate === todayString;
+  });
+
+  const upcomingExams = exams.filter(e => {
+    return e.scheduledDate && e.scheduledDate > todayString;
+  });
 
   const isExpired = schoolProfile && (schoolProfile.subscriptionActive === false || (schoolProfile.subscriptionExpiresAt && new Date(schoolProfile.subscriptionExpiresAt).getTime() < new Date().getTime()));
 
@@ -606,54 +679,77 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
 
           {/* 2. JADWAL UJIAN HARI INI Spotlight card */}
           <div className="bg-[#17a2b8] text-white p-6 rounded-3xl shadow-lg shadow-sky-100 flex flex-col justify-between space-y-4 border border-sky-400/15 relative overflow-hidden group">
-            <div className="space-y-1 z-10">
-              <div className="flex items-center gap-1.5 text-sky-100 font-bold text-xs uppercase tracking-wider">
-                <span>📅</span>
-                <span>Jadwal Ujian Hari Ini</span>
-              </div>
-              <h4 className="font-extrabold text-base tracking-tight leading-snug mt-1 text-white flex items-center justify-between gap-2">
-                <span>{spotlightExam ? spotlightExam.title : "Kimia Dasar"}</span>
-                {spotlightExam && getExamStatus(spotlightExam.id) === "started" && (
-                  results.find(r => r.examId === spotlightExam.id && r.status === "started") && (
-                    <DashboardTimer
-                      exam={spotlightExam}
-                      result={results.find(r => r.examId === spotlightExam.id && r.status === "started")!}
-                      onTimeout={() => handleAutoSubmitExam(spotlightExam, results.find(r => r.examId === spotlightExam.id && r.status === "started")!)}
-                    />
-                  )
-                )}
-              </h4>
-              <p className="text-[11px] text-sky-100 font-medium">
-                {spotlightExam ? `Durasi: ${spotlightExam.duration} Menit • ${spotlightExam.questions.length} Soal` : "Sesi: Jam 10:00 WIB"}
-              </p>
-            </div>
-
             {spotlightExam ? (
-              getExamStatus(spotlightExam.id) === "submitted" ? (
-                <div className="w-full py-2.5 bg-amber-600/50 text-white font-bold text-xs uppercase tracking-wider rounded-2xl border border-amber-400/30 text-center z-10 flex items-center justify-center gap-1.5">
-                  <span>🔒 Sudah Dikerjakan (Terkunci)</span>
+              <>
+                <div className="space-y-1 z-10">
+                  <div className="flex items-center gap-1.5 text-sky-100 font-bold text-xs uppercase tracking-wider">
+                    <span>📅</span>
+                    <span>Jadwal Ujian Hari Ini</span>
+                  </div>
+                  <h4 className="font-extrabold text-base tracking-tight leading-snug mt-1 text-white flex items-center justify-between gap-2">
+                    <span>{spotlightExam.title}</span>
+                    {getExamStatus(spotlightExam.id) === "started" && (
+                      results.find(r => r.examId === spotlightExam.id && r.status === "started") && (
+                        <DashboardTimer
+                          exam={spotlightExam}
+                          result={results.find(r => r.examId === spotlightExam.id && r.status === "started")!}
+                          onTimeout={() => handleAutoSubmitExam(spotlightExam, results.find(r => r.examId === spotlightExam.id && r.status === "started")!)}
+                        />
+                      )
+                    )}
+                  </h4>
+                  <p className="text-[11px] text-sky-100 font-medium">
+                    {spotlightExam.scheduledDate 
+                      ? `Jadwal: ${spotlightExam.scheduledStartTime || "00:00"} - ${spotlightExam.scheduledEndTime || "23:59"} WIB`
+                      : "Sesi: Terbuka Bebas"}
+                    {` • ${spotlightExam.questions.length} Soal`}
+                  </p>
                 </div>
-              ) : getExamStatus(spotlightExam.id) === "started" ? (
-                <button
-                  id="btn-spotlight-ikuti-ujian"
-                  onClick={handleStartSpotlight}
-                  className="w-full py-2.5 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-md shadow-rose-500/30 hover:scale-[1.01] transition-all cursor-pointer text-center animate-pulse z-10 flex items-center justify-center gap-2"
-                >
-                  LANJUTKAN UJIAN ⏳
-                </button>
-              ) : (
-                <button
-                  id="btn-spotlight-ikuti-ujian"
-                  onClick={handleStartSpotlight}
-                  className="w-full py-2.5 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-md shadow-rose-500/30 hover:scale-[1.01] transition-all cursor-pointer text-center animate-pulse z-10"
-                >
-                  IKUTI UJIAN
-                </button>
-              )
+
+                {getExamStatus(spotlightExam.id) === "submitted" ? (
+                  <div className="w-full py-2.5 bg-amber-600/50 text-white font-bold text-xs uppercase tracking-wider rounded-2xl border border-amber-400/30 text-center z-10 flex items-center justify-center gap-1.5">
+                    <span>🔒 Sudah Dikerjakan (Terkunci)</span>
+                  </div>
+                ) : !getExamScheduleStatus(spotlightExam).buttonEnabled ? (
+                  <div className="w-full py-2.5 bg-slate-800/40 text-slate-150 font-bold text-xs uppercase tracking-wider rounded-2xl border border-slate-450/20 text-center z-10 flex items-center justify-center gap-1.5">
+                    <span>⏳ {getExamScheduleStatus(spotlightExam).statusText}</span>
+                  </div>
+                ) : getExamStatus(spotlightExam.id) === "started" ? (
+                  <button
+                    id="btn-spotlight-ikuti-ujian"
+                    onClick={handleStartSpotlight}
+                    className="w-full py-2.5 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-md shadow-rose-500/30 hover:scale-[1.01] transition-all cursor-pointer text-center animate-pulse z-10 flex items-center justify-center gap-2"
+                  >
+                    LANJUTKAN UJIAN ⏳
+                  </button>
+                ) : (
+                  <button
+                    id="btn-spotlight-ikuti-ujian"
+                    onClick={handleStartSpotlight}
+                    className="w-full py-2.5 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-md shadow-rose-500/30 hover:scale-[1.01] transition-all cursor-pointer text-center animate-pulse z-10"
+                  >
+                    IKUTI UJIAN
+                  </button>
+                )}
+              </>
             ) : (
-              <div className="py-2 px-3 bg-white/10 rounded-xl text-center text-xs font-semibold text-white/80 z-10">
-                Ujian Belum Dibuka Oleh Pengajar
-              </div>
+              <>
+                <div className="space-y-1 z-10">
+                  <div className="flex items-center gap-1.5 text-sky-100 font-bold text-xs uppercase tracking-wider">
+                    <span>📅</span>
+                    <span>Jadwal Ujian Hari Ini</span>
+                  </div>
+                  <h4 className="font-extrabold text-base tracking-tight leading-snug mt-1 text-white">
+                    Tidak Ada Ujian Hari Ini
+                  </h4>
+                  <p className="text-[11px] text-sky-100 font-medium">
+                    Saat ini belum ada jadwal pelaksanaan ujian untuk hari ini.
+                  </p>
+                </div>
+                <div className="py-2.5 px-3 bg-white/10 rounded-2xl text-center text-xs font-bold text-white/95 z-10 border border-white/10">
+                  Santai & Persiapkan Diri! ✨
+                </div>
+              </>
             )}
             
             <div className="absolute -right-8 -top-8 bg-white/5 w-24 h-24 rounded-full group-hover:scale-125 transition-all"></div>
@@ -704,116 +800,175 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
                 <div className="p-12 text-center bg-white border border-slate-150 rounded-2xl">
                   Sedang menyinkronkan daftar soal...
                 </div>
-              ) : exams.length === 0 ? (
+              ) : activeTodayExams.length === 0 && upcomingExams.length === 0 ? (
                 <div className="p-8 text-center bg-white border border-slate-100 rounded-2xl text-slate-400 text-xs">
-                  Saat ini belum ada paket ujian yang sedang diaktifkan oleh pengajar.
+                  Saat ini belum ada paket ujian yang diaktifkan oleh pengajar untuk kelas Anda.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {exams.map((exam, index) => {
-                    const status = getExamStatus(exam.id);
-                    const score = getExamScore(exam.id);
-                    
-                    // Vibrant solid background themes to match mockup:
-                    // Green, Amber, Blue, Purple
-                    const cardThemes = [
-                      { bg: "bg-emerald-500", text: "text-white", badge: "bg-emerald-600/40 text-emerald-100", btn: "bg-white text-emerald-600 hover:bg-emerald-50 border border-emerald-400/20" },
-                      { bg: "bg-amber-500", text: "text-white", badge: "bg-amber-600/40 text-amber-100", btn: "bg-white text-amber-600 hover:bg-amber-50 border border-amber-400/20" },
-                      { bg: "bg-sky-500", text: "text-white", badge: "bg-sky-600/40 text-sky-100", btn: "bg-white text-sky-600 hover:bg-sky-50 border border-sky-400/20" },
-                      { bg: "bg-purple-600", text: "text-white", badge: "bg-purple-700/40 text-purple-100", btn: "bg-white text-purple-600 hover:bg-purple-50 border border-purple-400/20" }
-                    ];
-                    const theme = cardThemes[index % cardThemes.length];
-                    
-                    return (
-                      <div key={exam.id} className={`${theme.bg} ${theme.text} rounded-3xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:scale-[1.01] transition-all`}>
-                        <div className="space-y-1.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">
-                                {index + 1}
-                              </div>
-                              <h5 className="font-extrabold text-sm tracking-tight leading-snug line-clamp-2">{exam.title}</h5>
-                            </div>
-                            
-                            {status === "submitted" ? (
-                              <span className="bg-amber-600 border border-amber-400 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0 flex items-center gap-1 shadow-sm">
-                                🔒 Terkunci (Sudah Dikerjakan)
-                              </span>
-                            ) : status === "started" ? (
-                              results.find(r => r.examId === exam.id && r.status === "started") ? (
-                                <DashboardTimer
-                                  exam={exam}
-                                  result={results.find(r => r.examId === exam.id && r.status === "started")!}
-                                  onTimeout={() => handleAutoSubmitExam(exam, results.find(r => r.examId === exam.id && r.status === "started")!)}
-                                />
-                              ) : (
-                                <span className="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider animate-pulse shrink-0">
-                                  Berjalan ⏳
-                                </span>
-                              )
-                            ) : (
-                              <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">
-                                Tersedia
-                              </span>
-                            )}
-                          </div>
+                <div className="space-y-6">
+                  {/* Section 1: Ujian Hari Ini / Aktif */}
+                  {activeTodayExams.length > 0 && (
+                    <div className="space-y-3">
+                      <h5 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Ujian Hari Ini</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {activeTodayExams.map((exam, index) => {
+                          const status = getExamStatus(exam.id);
+                          const score = getExamScore(exam.id);
+                          const sched = getExamScheduleStatus(exam);
                           
-                          <p className="text-xs opacity-90 line-clamp-2 leading-relaxed">{exam.description || "Ujian evaluasi harian."}</p>
-                        </div>
-                        
-                        <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2.5 opacity-90 font-medium">
-                            <span className="flex items-center gap-1">⏱️ {exam.duration}m</span>
-                            <span>•</span>
-                            <span>{exam.questions.length} Soal</span>
-                          </div>
+                          const cardThemes = [
+                            { bg: "bg-emerald-500", text: "text-white", badge: "bg-emerald-600/40 text-emerald-100", btn: "bg-white text-emerald-600 hover:bg-emerald-50 border border-emerald-400/20" },
+                            { bg: "bg-amber-500", text: "text-white", badge: "bg-amber-600/40 text-amber-100", btn: "bg-white text-amber-600 hover:bg-amber-50 border border-amber-400/20" },
+                            { bg: "bg-sky-500", text: "text-white", badge: "bg-sky-600/40 text-sky-100", btn: "bg-white text-sky-600 hover:bg-sky-50 border border-sky-400/20" },
+                            { bg: "bg-purple-600", text: "text-white", badge: "bg-purple-700/40 text-purple-100", btn: "bg-white text-purple-600 hover:bg-purple-50 border border-purple-400/20" }
+                          ];
+                          const theme = cardThemes[index % cardThemes.length];
                           
-                          {status === "submitted" ? (
-                            <div className="flex items-center gap-1.5">
-                              <div className="bg-white/15 px-2 py-0.5 rounded-lg text-center font-bold text-[10px]">
-                                <span className="text-[8px] block opacity-75">Nilai</span>
-                                <span>{score !== null ? score : "-"}</span>
+                          return (
+                            <div key={exam.id} className={`${theme.bg} ${theme.text} rounded-3xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:scale-[1.01] transition-all`}>
+                              <div className="space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs shrink-0">
+                                      {index + 1}
+                                    </div>
+                                    <h5 className="font-extrabold text-sm tracking-tight leading-snug line-clamp-2">{exam.title}</h5>
+                                  </div>
+                                  
+                                  {status === "submitted" ? (
+                                    <span className="bg-amber-600 border border-amber-400 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0 flex items-center gap-1 shadow-sm">
+                                      🔒 Terkunci
+                                    </span>
+                                  ) : !sched.buttonEnabled ? (
+                                    <span className="bg-slate-800/40 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">
+                                      ⏳ {sched.statusText}
+                                    </span>
+                                  ) : status === "started" ? (
+                                    results.find(r => r.examId === exam.id && r.status === "started") ? (
+                                      <DashboardTimer
+                                        exam={exam}
+                                        result={results.find(r => r.examId === exam.id && r.status === "started")!}
+                                        onTimeout={() => handleAutoSubmitExam(exam, results.find(r => r.examId === exam.id && r.status === "started")!)}
+                                      />
+                                    ) : (
+                                      <span className="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider animate-pulse shrink-0">
+                                        Berjalan ⏳
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">
+                                      Tersedia
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <p className="text-xs opacity-90 line-clamp-2 leading-relaxed">{exam.description || "Ujian evaluasi harian."}</p>
                               </div>
-                              <button
-                                id={`btn-review-exam-${exam.id}`}
-                                onClick={() => {
-                                  const matchedRes = results.find(r => r.examId === exam.id && r.status === "submitted");
-                                  if (matchedRes) setSelectedResult(matchedRes);
-                                }}
-                                className={`py-1 px-2.5 rounded-lg text-[10px] font-extrabold tracking-wide transition-all ${theme.btn} cursor-pointer`}
-                              >
-                                Pembahasan
-                              </button>
+                              
+                              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2 font-medium opacity-95">
+                                  <span className="flex items-center gap-1">⏱️ {exam.duration}m</span>
+                                  <span>•</span>
+                                  <span>{exam.questions.length} Soal</span>
+                                </div>
+                                
+                                {status === "submitted" ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="bg-white/15 px-2 py-0.5 rounded-lg text-center font-bold text-[10px]">
+                                      <span className="text-[8px] block opacity-75">Nilai</span>
+                                      <span>{score !== null ? score : "-"}</span>
+                                    </div>
+                                    <button
+                                      id={`btn-review-exam-${exam.id}`}
+                                      onClick={() => {
+                                        const matchedRes = results.find(r => r.examId === exam.id && r.status === "submitted");
+                                        if (matchedRes) setSelectedResult(matchedRes);
+                                      }}
+                                      className={`py-1 px-2.5 rounded-lg text-[10px] font-extrabold tracking-wide transition-all ${theme.btn} cursor-pointer`}
+                                    >
+                                      Pembahasan
+                                    </button>
+                                  </div>
+                                ) : !sched.buttonEnabled ? (
+                                  <span className="text-[10px] font-bold px-2.5 py-1 bg-white/10 rounded-lg">{sched.statusText}</span>
+                                ) : status === "started" ? (
+                                  <button
+                                    id={`btn-resume-exam-${exam.id}`}
+                                    onClick={() => setActiveExam(exam)}
+                                    className={`py-1 px-2.5 rounded-lg text-[10px] font-extrabold tracking-wide transition-all ${theme.btn} cursor-pointer flex items-center gap-1`}
+                                  >
+                                    Lanjutkan
+                                  </button>
+                                ) : (
+                                  <button
+                                    id={`btn-start-exam-${exam.id}`}
+                                    onClick={() => {
+                                      if (exam.questions.length === 0) {
+                                        alert("Maaf, ujian ini belum memiliki soal di dalamnya.");
+                                        return;
+                                      }
+                                      setTokenExam(exam);
+                                      setTokenInput("");
+                                      setTokenError("");
+                                    }}
+                                    className={`py-1.5 px-3 rounded-lg text-[10px] font-extrabold tracking-wide transition-all ${theme.btn} cursor-pointer`}
+                                  >
+                                    Mulai
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          ) : status === "started" ? (
-                            <button
-                              id={`btn-resume-exam-${exam.id}`}
-                              onClick={() => setActiveExam(exam)}
-                              className={`py-1 px-2.5 rounded-lg text-[10px] font-extrabold tracking-wide transition-all ${theme.btn} cursor-pointer flex items-center gap-1`}
-                            >
-                              Lanjutkan
-                            </button>
-                          ) : (
-                            <button
-                              id={`btn-start-exam-${exam.id}`}
-                              onClick={() => {
-                                if (exam.questions.length === 0) {
-                                  alert("Maaf, ujian ini belum memiliki soal di dalamnya.");
-                                  return;
-                                }
-                                setTokenExam(exam);
-                                setTokenInput("");
-                                setTokenError("");
-                              }}
-                              className={`py-1.5 px-3 rounded-lg text-[10px] font-extrabold tracking-wide transition-all ${theme.btn} cursor-pointer`}
-                            >
-                              Mulai
-                            </button>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
+
+                  {/* Section 2: Jadwal Ujian Mendatang (Upcoming) */}
+                  {upcomingExams.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <h5 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                        Jadwal Ujian Terjadwal (Akan Datang)
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {upcomingExams.map((exam, index) => {
+                          return (
+                            <div key={exam.id} className="bg-slate-50 text-slate-700 border border-slate-200 rounded-3xl p-5 flex flex-col justify-between space-y-4 shadow-xs">
+                              <div className="space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 shrink-0">
+                                      {index + 1}
+                                    </div>
+                                    <h5 className="font-extrabold text-sm tracking-tight leading-snug text-slate-800 line-clamp-2">{exam.title}</h5>
+                                  </div>
+                                  <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0 flex items-center gap-1">
+                                    📅 Terjadwal
+                                  </span>
+                                </div>
+                                
+                                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{exam.description || "Akan segera dimulai sesuai jadwal."}</p>
+                              </div>
+                              
+                              <div className="pt-3 border-t border-slate-200 flex flex-col gap-2 text-xs">
+                                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 bg-slate-100/80 px-3 py-1.5 rounded-xl">
+                                  <span>Tanggal: {exam.scheduledDate}</span>
+                                  <span>Jam: {exam.scheduledStartTime || "00:00"} - {exam.scheduledEndTime || "23:59"}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs pt-1">
+                                  <span className="text-slate-400 font-medium">⏱️ {exam.duration}m • {exam.questions.length} Soal</span>
+                                  <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+                                    <span>⏳ Belum Dibuka</span>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

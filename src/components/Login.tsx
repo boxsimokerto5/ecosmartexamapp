@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, doc, getDoc } from "../lib/firebase"
 import { db } from "../lib/firebase";
 import { checkUserLimit } from "../lib/userLimit";
 import { Student, Teacher, Principal } from "../types";
-import { LogIn, GraduationCap, School, AlertCircle, ShieldCheck, Award, MessageCircle, FlaskConical } from "lucide-react";
+import { LogIn, GraduationCap, School, AlertCircle, ShieldCheck, Award, MessageCircle, FlaskConical, User, BookOpen } from "lucide-react";
 
 interface LoginProps {
   onLoginSuccess: (user: { 
@@ -340,7 +340,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               setError(null);
             }}
           >
-            <GraduationCap className="w-3.5 h-3.5 text-emerald-500" />
+            <User className="w-3.5 h-3.5 text-emerald-500" />
             <span>Siswa</span>
           </button>
           
@@ -357,7 +357,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               setError(null);
             }}
           >
-            <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
+            <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
             <span>Guru</span>
           </button>
 
@@ -454,7 +454,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 onClick={() => handleDemoLogin("siswa")}
                 className="py-3 px-1 bg-emerald-50/70 hover:bg-emerald-100/80 active:scale-95 border border-emerald-200/60 text-emerald-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
               >
-                <GraduationCap className="w-5 h-5 text-emerald-600" />
+                <User className="w-5 h-5 text-emerald-600" />
                 <span>Siswa Demo</span>
               </button>
               <button
@@ -462,7 +462,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 onClick={() => handleDemoLogin("guru")}
                 className="py-3 px-1 bg-indigo-50/70 hover:bg-indigo-100/80 active:scale-95 border border-indigo-200/60 text-indigo-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
               >
-                <GraduationCap className="w-5 h-5 text-indigo-600" />
+                <BookOpen className="w-5 h-5 text-indigo-600" />
                 <span>Guru Demo</span>
               </button>
               <button

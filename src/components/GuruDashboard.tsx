@@ -63,7 +63,8 @@ import {
   Percent,
   Key,
   Eye,
-  History
+  History,
+  Calendar
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -117,7 +118,21 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
   const [newStudent, setNewStudent] = useState({ name: "", username: "", password: "123", class: "" });
   
   const [showAddExam, setShowAddExam] = useState(false);
-  const [newExam, setNewExam] = useState({ title: "", description: "", duration: 30, token: "" });
+  const [newExam, setNewExam] = useState({ 
+    title: "", 
+    description: "", 
+    duration: 30, 
+    token: "",
+    scheduledDate: "",
+    scheduledStartTime: "",
+    scheduledEndTime: ""
+  });
+  const [editingExamSchedule, setEditingExamSchedule] = useState<Exam | null>(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    scheduledDate: "",
+    scheduledStartTime: "",
+    scheduledEndTime: ""
+  });
   const [selectedExamForQuestions, setSelectedExamForQuestions] = useState<Exam | null>(null);
 
   // New Question Form state
@@ -610,16 +625,45 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
       schoolId: user.schoolId,
       schoolName: user.schoolName,
       createdAt: new Date().toISOString(),
-      token: generatedToken
+      token: generatedToken,
+      scheduledDate: newExam.scheduledDate || "",
+      scheduledStartTime: newExam.scheduledStartTime || "",
+      scheduledEndTime: newExam.scheduledEndTime || ""
     };
 
     try {
       await setDoc(doc(db, "exams", examId), examData);
-      setNewExam({ title: "", description: "", duration: 30, token: "" });
+      setNewExam({ 
+        title: "", 
+        description: "", 
+        duration: 30, 
+        token: "",
+        scheduledDate: "",
+        scheduledStartTime: "",
+        scheduledEndTime: ""
+      });
       setShowAddExam(false);
     } catch (err) {
       console.error(err);
       alert("Gagal membuat ujian.");
+    }
+  };
+
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExamSchedule) return;
+
+    try {
+      await updateDoc(doc(db, "exams", editingExamSchedule.id), {
+        scheduledDate: scheduleForm.scheduledDate,
+        scheduledStartTime: scheduleForm.scheduledStartTime,
+        scheduledEndTime: scheduleForm.scheduledEndTime
+      });
+      alert("Jadwal ujian berhasil diperbarui!");
+      setEditingExamSchedule(null);
+    } catch (err) {
+      console.error("Gagal memperbarui jadwal ujian:", err);
+      alert("Gagal memperbarui jadwal ujian di server.");
     }
   };
 
@@ -2148,6 +2192,43 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                               required
                             />
                           </div>
+                          
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                            <h5 className="font-bold text-xs text-slate-700 flex items-center gap-1.5 uppercase">
+                              <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                              Jadwal Pelaksanaan (Opsional)
+                            </h5>
+                            <p className="text-[11px] text-slate-400">Isi jika Anda ingin membatasi akses pengerjaan ujian pada hari dan jam tertentu agar siswa tahu kapan ada ujian.</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Tanggal</label>
+                                <input
+                                  type="date"
+                                  value={newExam.scheduledDate}
+                                  onChange={(e) => setNewExam({ ...newExam, scheduledDate: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Jam Mulai</label>
+                                <input
+                                  type="time"
+                                  value={newExam.scheduledStartTime}
+                                  onChange={(e) => setNewExam({ ...newExam, scheduledStartTime: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Jam Selesai</label>
+                                <input
+                                  type="time"
+                                  value={newExam.scheduledEndTime}
+                                  onChange={(e) => setNewExam({ ...newExam, scheduledEndTime: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="space-y-3 flex flex-col justify-between">
@@ -2216,6 +2297,14 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                                 <div className="space-y-1">
                                   <h5 className="font-bold text-slate-800 text-sm leading-snug">{exam.title}</h5>
                                   <p className="text-xs text-slate-400 line-clamp-1">{exam.description}</p>
+                                  {exam.scheduledDate && (
+                                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50/70 border border-amber-100 rounded-lg px-2 py-0.5 w-fit">
+                                      <Calendar className="w-2.5 h-2.5 text-amber-500" />
+                                      <span>
+                                        Jadwal: {exam.scheduledDate} ({exam.scheduledStartTime || "00:00"} - {exam.scheduledEndTime || "23:59"})
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                   exam.status === "active" 
@@ -2269,6 +2358,23 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                                   className="py-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium rounded-lg text-[11px] transition-all cursor-pointer"
                                 >
                                   Kelola Soal
+                                </button>
+                                <button
+                                  id={`btn-schedule-exam-${exam.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingExamSchedule(exam);
+                                    setScheduleForm({
+                                      scheduledDate: exam.scheduledDate || "",
+                                      scheduledStartTime: exam.scheduledStartTime || "",
+                                      scheduledEndTime: exam.scheduledEndTime || ""
+                                    });
+                                  }}
+                                  className="py-1 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg text-[11px] transition-all cursor-pointer flex items-center gap-1 border border-amber-100 shadow-xs"
+                                  title="Atur Jadwal Pelaksanaan Ujian"
+                                >
+                                  <Calendar className="w-3 h-3 text-amber-600" />
+                                  <span>Jadwal</span>
                                 </button>
                                 <button
                                   id={`btn-status-toggle-${exam.id}`}
@@ -3187,6 +3293,81 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
             setSelectedResult(res);
           }}
         />
+      )}
+
+      {editingExamSchedule && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-100 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-extrabold tracking-tight text-slate-800 uppercase flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-indigo-600 animate-pulse" />
+                Atur Jadwal Pelaksanaan Ujian
+              </h3>
+              <button 
+                onClick={() => setEditingExamSchedule(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Atur jadwal pelaksanaan untuk paket ujian <span className="font-extrabold text-slate-700">"{editingExamSchedule.title}"</span> agar siswa mengetahui waktu pelaksanaan dan membatasi akses pengerjaan.
+            </p>
+
+            <form onSubmit={handleSaveSchedule} className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Tanggal Pelaksanaan</label>
+                <input
+                  type="date"
+                  value={scheduleForm.scheduledDate}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledDate: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Jam Mulai</label>
+                  <input
+                    type="time"
+                    value={scheduleForm.scheduledStartTime}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledStartTime: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Jam Selesai</label>
+                  <input
+                    type="time"
+                    value={scheduleForm.scheduledEndTime}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, scheduledEndTime: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScheduleForm({ scheduledDate: "", scheduledStartTime: "", scheduledEndTime: "" });
+                  }}
+                  className="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold text-xs transition-all cursor-pointer"
+                  title="Kosongkan jadwal agar ujian selalu aktif secara terbuka"
+                >
+                  Reset Jadwal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all cursor-pointer shadow-md shadow-indigo-100"
+                >
+                  Simpan Jadwal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
