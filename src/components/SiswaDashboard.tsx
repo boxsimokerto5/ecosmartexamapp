@@ -363,7 +363,9 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
   }
 
   // Stats Calculations for Histori Tab
-  const submittedResults = results.filter(r => r.status === "submitted");
+  const submittedResults = results
+    .filter(r => r.status === "submitted")
+    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
   const totalSubmitted = submittedResults.length;
   const averageScore = totalSubmitted > 0 ? Math.round(submittedResults.reduce((acc, curr) => acc + curr.score, 0) / totalSubmitted) : 0;
   const highestScore = totalSubmitted > 0 ? Math.max(...submittedResults.map(r => r.score)) : 0;
@@ -988,37 +990,36 @@ export default function SiswaDashboard({ user, onLogout }: SiswaDashboardProps) 
                 Ringkasan Nilai Terbaru
               </h4>
 
-              {/* Bento Grid Scores (Blue, Green, Red) */}
-              <div className="grid grid-cols-3 gap-3">
-                
-                {/* Matematika */}
-                <div className="bg-sky-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden h-24">
-                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-95">MATEMATIKA</span>
-                  <div className="font-black text-xl tracking-tight mt-1">
-                    {submittedResults.find(r => r.examTitle.toLowerCase().includes("matematika"))?.score ?? 92} <span className="text-xs">⭐</span>
-                  </div>
-                  <div className="absolute -bottom-2 -right-2 bg-white/10 w-8 h-8 rounded-full"></div>
+              {/* Bento Grid Scores for Latest Actual Submissions */}
+              {submittedResults.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                  {submittedResults.slice(0, 3).map((res, index) => {
+                    const bgColors = [
+                      "bg-sky-500 text-white shadow-sky-100",
+                      "bg-emerald-500 text-white shadow-emerald-100",
+                      "bg-rose-500 text-white shadow-rose-100"
+                    ];
+                    const bg = bgColors[index % bgColors.length];
+                    return (
+                      <div 
+                        key={res.id} 
+                        onClick={() => setSelectedResult(res)}
+                        className={`${bg} p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden h-24 cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all group`}
+                        title={`Lihat pembahasan ${res.examTitle}`}
+                      >
+                        <span className="text-[9px] font-black uppercase tracking-wider opacity-95 line-clamp-1 w-full px-1">
+                          {res.examTitle}
+                        </span>
+                        <div className="font-black text-xl tracking-tight mt-1 flex items-baseline gap-0.5">
+                          {res.score}
+                          {res.score >= 80 && <span className="text-[10px]">⭐</span>}
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 bg-white/10 w-8 h-8 rounded-full"></div>
+                      </div>
+                    );
+                  })}
                 </div>
-
-                {/* Sejarah */}
-                <div className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden h-24">
-                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-95">SEJARAH</span>
-                  <div className="font-black text-xl tracking-tight mt-1">
-                    {submittedResults.find(r => r.examTitle.toLowerCase().includes("sejarah"))?.score ?? 88}
-                  </div>
-                  <div className="absolute -bottom-2 -right-2 bg-white/10 w-8 h-8 rounded-full"></div>
-                </div>
-
-                {/* Kimia */}
-                <div className="bg-rose-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden h-24">
-                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-95">KIMIA</span>
-                  <div className="font-black text-xl tracking-tight mt-1">
-                    {submittedResults.find(r => r.examTitle.toLowerCase().includes("kimia"))?.score ?? 75}
-                  </div>
-                  <div className="absolute -bottom-2 -right-2 bg-white/10 w-8 h-8 rounded-full"></div>
-                </div>
-
-              </div>
+              )}
 
               {/* Historic List of Submissions */}
               <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
