@@ -728,7 +728,7 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
               <img 
                 src="/logo.png" 
                 alt="Eco Smart Exam Logo" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain p-1"
                 referrerPolicy="no-referrer"
               />
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Download, Smartphone, Laptop, X, Share, Info, Check, ArrowDown, HelpCircle, Sparkles, AlertCircle } from "lucide-react";
+import { Download, Smartphone, Laptop, X, Share, Info, Check, ArrowDown, HelpCircle, Sparkles, AlertCircle, ExternalLink } from "lucide-react";
 
 export default function PwaInstaller() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -8,8 +8,12 @@ export default function PwaInstaller() {
   const [showBanner, setShowBanner] = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
   const [platform, setPlatform] = useState<"ios" | "android" | "desktop" | "other">("other");
+  const [isInIframe, setIsInIframe] = useState(false);
 
   useEffect(() => {
+    // Detect if app is currently running in an iframe (e.g., AI Studio preview panel)
+    setIsInIframe(window.self !== window.top);
+
     // Detect if app is already running in standalone mode (PWA/Installed)
     const checkStandalone = () => {
       const isStandaloneMode = 
@@ -71,6 +75,12 @@ export default function PwaInstaller() {
   }, []);
 
   const handleInstallClick = async () => {
+    if (isInIframe) {
+      // Open in a new tab where standard PWA browser permissions are not sandboxed
+      window.open(window.location.origin, "_blank");
+      return;
+    }
+
     const activePrompt = deferredPrompt || (window as any).deferredSDKPrompt;
     
     if (activePrompt) {
@@ -131,14 +141,16 @@ export default function PwaInstaller() {
               </span>
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-indigo-50 border border-indigo-100/50 rounded-full text-[8px] font-black text-indigo-600">
                 <Sparkles className="w-2 h-2" />
-                <span>Ringan</span>
+                <span>{isInIframe ? "Instalasi Cepat" : "Ringan"}</span>
               </span>
             </div>
             <h4 className="font-extrabold text-slate-800 text-xs sm:text-sm tracking-tight mt-0.5">
               Pasang Aplikasi di Layar HP / PC
             </h4>
             <p className="text-[10px] sm:text-xs text-slate-500 leading-tight mt-1">
-              Akses cepat tanpa browser, menghemat kuota, dan mencegah gangguan saat ujian!
+              {isInIframe 
+                ? "Klik di bawah untuk membuka di tab baru & mengaktifkan tombol instalasi instan!" 
+                : "Akses cepat tanpa browser, menghemat kuota, dan mencegah gangguan saat ujian!"}
             </p>
           </div>
 
@@ -164,10 +176,10 @@ export default function PwaInstaller() {
 
           <button
             onClick={handleInstallClick}
-            className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 text-[11px] font-black text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 rounded-xl transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+            className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 text-[11px] font-black text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 rounded-xl transition-all shadow-md shadow-emerald-500/10 cursor-pointer text-center"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Pasang Sekarang</span>
+            {isInIframe ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+            <span>{isInIframe ? "Buka & Pasang" : "Pasang Sekarang"}</span>
           </button>
         </div>
       </div>

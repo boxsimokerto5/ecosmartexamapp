@@ -97,7 +97,7 @@ export default function SplashScreen({ isSeeding, onFinished }: SplashScreenProp
                <img 
                  src="/logo.png" 
                  alt="Eco Smart Exam Logo" 
-                 className="w-full h-full object-cover"
+                 className="w-full h-full object-contain p-2"
                  referrerPolicy="no-referrer"
                />
               
