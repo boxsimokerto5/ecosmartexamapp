@@ -64,7 +64,8 @@ import {
   Key,
   Eye,
   History,
-  Calendar
+  Calendar,
+  Printer
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -116,6 +117,11 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
   // Modals / Form States
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", username: "", password: "123", class: "" });
+  
+  // Print Cards State
+  const [showPrintCardsModal, setShowPrintCardsModal] = useState(false);
+  const [printClassFilter, setPrintClassFilter] = useState("all");
+  const [printSearchQuery, setPrintSearchQuery] = useState("");
   
   const [showAddExam, setShowAddExam] = useState(false);
   const [newExam, setNewExam] = useState({ 
@@ -1268,6 +1274,22 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
     s.username.toLowerCase().includes(searchStudent.toLowerCase()) ||
     s.class.toLowerCase().includes(searchStudent.toLowerCase())
   );
+
+  const chunkArray = (arr: any[], size: number): any[][] => {
+    const result: any[][] = [];
+    for (let i = 0; i < arr.length; i += size) {
+      result.push(arr.slice(i, i + size));
+    }
+    return result;
+  };
+
+  const studentsToPrint = displayStudents.filter(s => {
+    const matchClass = printClassFilter === "all" || s.class === printClassFilter;
+    const matchSearch = !printSearchQuery || 
+      s.name.toLowerCase().includes(printSearchQuery.toLowerCase()) ||
+      s.username.toLowerCase().includes(printSearchQuery.toLowerCase());
+    return matchClass && matchSearch;
+  });
 
   const filteredResults = displayResults.filter(r => {
     const matchExam = selectedResultExamFilter === "all" || r.examId === selectedResultExamFilter;
@@ -2797,14 +2819,29 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                       />
                     </div>
 
-                    <button
-                      id="btn-add-student-modal"
-                      onClick={() => setShowAddStudent(true)}
-                      className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition-all flex items-center gap-2 self-start cursor-pointer"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      <span>Tambah Akun Siswa Baru</span>
-                    </button>
+                    <div className="flex items-center gap-2 self-start flex-wrap">
+                      <button
+                        id="btn-print-student-cards"
+                        onClick={() => {
+                          setPrintClassFilter("all");
+                          setPrintSearchQuery("");
+                          setShowPrintCardsModal(true);
+                        }}
+                        className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Cetak Kartu Ujian (A4)</span>
+                      </button>
+
+                      <button
+                        id="btn-add-student-modal"
+                        onClick={() => setShowAddStudent(true)}
+                        className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>Tambah Akun Siswa Baru</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Add Student Form Card */}
@@ -3379,6 +3416,358 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
           </div>
         </div>
       )}
+
+      {showPrintCardsModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn no-print overflow-hidden">
+          <div className="bg-white rounded-3xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-indigo-700 p-5 text-white flex items-center justify-between shrink-0 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-emerald-100" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm uppercase tracking-wider">Cetak Kartu Login Ujian Siswa (A4)</h3>
+                  <p className="text-[10px] text-emerald-100/90 font-medium">Layout kartu siap cetak dan dipotong, ukuran pas untuk kertas A4</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPrintCardsModal(false)}
+                className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-all cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content Grid */}
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50">
+              {/* Left Column: Controls & Guidelines */}
+              <div className="w-full lg:w-80 bg-white p-6 border-r border-slate-200 flex flex-col justify-between shrink-0 overflow-y-auto">
+                <div className="space-y-5">
+                  <div className="space-y-3">
+                    <h4 className="font-black text-xs text-slate-700 uppercase tracking-wider">Filter Data Siswa</h4>
+                    
+                    {/* Class Filter */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Filter Kelas</label>
+                      <select
+                        value={printClassFilter}
+                        onChange={(e) => setPrintClassFilter(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="all">Semua Kelas</option>
+                        {displayClasses.map((sc) => (
+                          <option key={sc.id} value={sc.name}>
+                            {sc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Search query filter */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cari Nama / Username</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Masukkan kata kunci..."
+                          value={printSearchQuery}
+                          onChange={(e) => setPrintSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-[11px] text-emerald-800 leading-relaxed space-y-2">
+                    <h5 className="font-bold flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Panduan Cetak A4:</span>
+                    </h5>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li>Gunakan kertas ukuran <strong>A4</strong>.</li>
+                      <li>Atur orientasi ke <strong>Potret / Portrait</strong>.</li>
+                      <li>Setel margin ke <strong>Default</strong> atau <strong>None</strong> di dialog printer browser.</li>
+                      <li>Aktifkan opsi <strong>Background Graphics (Grafis Latar Belakang)</strong> agar desain warna tercetak sempurna.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 text-[10px] text-indigo-700 leading-tight">
+                    <span className="font-extrabold block mb-0.5">Informasi Kartu:</span>
+                    <span>Setiap halaman A4 berisi maksimal <strong>8 kartu</strong> untuk mencegah layout terpotong.</span>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 space-y-3 mt-6 lg:mt-0">
+                  <button
+                    onClick={() => {
+                      window.print();
+                    }}
+                    disabled={studentsToPrint.length === 0}
+                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-500/15 flex items-center justify-center gap-2"
+                  >
+                    <Printer className="w-4 h-4 text-white" />
+                    <span>Cetak &amp; Simpan PDF ({studentsToPrint.length})</span>
+                  </button>
+                  
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[10px] text-amber-800 leading-normal">
+                    <span className="font-extrabold block mb-0.5">💡 Tips Mengunduh PDF:</span>
+                    <span>Pada dialog cetak browser yang muncul, ubah kolom <strong>Tujuan / Destination</strong> menjadi <strong>"Save as PDF" (Simpan sebagai PDF)</strong> untuk mengunduhnya sebagai file PDF di HP atau Laptop Anda.</span>
+                  </div>
+
+                  <button
+                    onClick={() => setShowPrintCardsModal(false)}
+                    className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Beautiful Live Preview of A4 Pages */}
+              <div className="flex-1 p-6 overflow-y-auto space-y-8 flex flex-col items-center">
+                <div className="text-center pb-2">
+                  <span className="text-xs font-bold text-slate-500">Live Preview Cetak A4 ({Math.ceil(studentsToPrint.length / 8)} Halaman)</span>
+                </div>
+
+                {studentsToPrint.length === 0 ? (
+                  <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm flex flex-col items-center justify-center">
+                    <UserPlus className="w-12 h-12 text-slate-300 mb-3 animate-pulse" />
+                    <p className="font-extrabold text-slate-700 text-sm">Tidak Ada Siswa Cocok</p>
+                    <p className="text-xs text-slate-500 mt-1">Silakan sesuaikan filter kelas atau kata kunci pencarian Anda.</p>
+                  </div>
+                ) : (
+                  chunkArray(studentsToPrint, 8).map((pageStudents, pageIdx) => (
+                    <div 
+                      key={pageIdx} 
+                      className="w-[210mm] max-w-full bg-white border border-slate-300 shadow-xl rounded-2xl p-[10mm] box-border relative flex flex-col justify-between shrink-0"
+                      style={{ aspectRatio: "210/297" }}
+                    >
+                      <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                        {pageStudents.map((student) => (
+                          <div 
+                            key={student.id} 
+                            className="border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col justify-between h-[58mm] bg-white relative overflow-hidden text-[11px]"
+                          >
+                            {/* Watermark Leaf decoration */}
+                            <div className="absolute right-[-10px] bottom-[-10px] text-emerald-500/5 rotate-12 select-none pointer-events-none">
+                              <BookOpen className="w-24 h-24" />
+                            </div>
+
+                            {/* Card Header */}
+                            <div className="flex items-start justify-between pb-1.5 border-b border-dashed border-slate-200">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 bg-emerald-50 rounded-lg border border-emerald-100 flex items-center justify-center shrink-0">
+                                  <img 
+                                    src="/logo.png" 
+                                    alt="Logo" 
+                                    className="w-4.5 h-4.5 object-contain"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                                <div className="leading-tight">
+                                  <h5 className="font-black text-[9px] uppercase text-emerald-600 tracking-wider">KARTU PESERTA UJIAN</h5>
+                                  <p className="font-bold text-[10px] text-slate-700 truncate max-w-[130px]">{user.schoolName}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="flex-1 py-2 space-y-1">
+                              <table className="w-full text-left">
+                                <tbody>
+                                  <tr>
+                                    <td className="w-18 text-[10px] font-semibold text-slate-400 py-0.5">Nama Siswa</td>
+                                    <td className="w-2 text-slate-400 py-0.5">:</td>
+                                    <td className="font-extrabold text-slate-800 py-0.5 truncate max-w-[150px]">{student.name}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-[10px] font-semibold text-slate-400 py-0.5">Kelas</td>
+                                    <td className="text-slate-400 py-0.5">:</td>
+                                    <td className="font-bold text-slate-700 py-0.5">{student.class}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-[10px] font-semibold text-slate-400 py-0.5">Username</td>
+                                    <td className="text-slate-400 py-0.5">:</td>
+                                    <td className="py-0.5">
+                                      <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded-md text-slate-800 text-[10px] border border-slate-200">
+                                        {student.username}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-[10px] font-semibold text-slate-400 py-0.5">Password</td>
+                                    <td className="text-slate-400 py-0.5">:</td>
+                                    <td className="py-0.5">
+                                      <span className="font-mono font-bold bg-indigo-50 px-1.5 py-0.5 rounded-md text-indigo-700 text-[10px] border border-indigo-100">
+                                        {student.password || "123"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Card Footer */}
+                            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                              <span className="text-[8px] text-slate-400 italic">Harap simpan kartu login ini dengan baik</span>
+                              <span className="font-black text-[9px] text-indigo-600 underline">
+                                https://ecosmartexamapp.pages.dev
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Preview Page Footer */}
+                      <div className="absolute bottom-2 right-4 text-[9px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                        Halaman {pageIdx + 1} dari {Math.ceil(studentsToPrint.length / 8)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- REAL-TIME A4 PRINT CONTAINER (ONLY VISIBLE IN BROWSER PRINT) --- */}
+      <div className="hidden print:block real-print-area">
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body {
+              background: white !important;
+              color: black !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            body > div:not(.real-print-area), 
+            #root > div:not(.real-print-area),
+            .no-print {
+              display: none !important;
+              height: 0 !important;
+              overflow: hidden !important;
+            }
+            .real-print-area {
+              display: block !important;
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 210mm !important;
+              background: white !important;
+              z-index: 9999999 !important;
+            }
+            .print-page {
+              width: 210mm !important;
+              height: 297mm !important;
+              margin: 0 !important;
+              padding: 10mm 10mm !important;
+              box-sizing: border-box !important;
+              page-break-after: always !important;
+              break-after: page !important;
+              background: white !important;
+              display: grid !important;
+              grid-template-columns: repeat(2, 1fr) !important;
+              grid-auto-rows: 58mm !important;
+              gap: 8mm 8mm !important;
+            }
+            .print-card-box {
+              border: 2px dashed #94a3b8 !important;
+              border-radius: 12px !important;
+              padding: 14px !important;
+              background: white !important;
+              height: 58mm !important;
+              box-sizing: border-box !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              position: relative !important;
+              overflow: hidden !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+        ` }} />
+
+        {chunkArray(studentsToPrint, 8).map((pageStudents, pageIdx) => (
+          <div key={pageIdx} className="print-page">
+            {pageStudents.map((student) => (
+              <div key={student.id} className="print-card-box">
+                {/* Background Watermark Leaf */}
+                <div className="absolute right-[-10px] bottom-[-10px] text-slate-300 opacity-[0.06] rotate-12 select-none pointer-events-none">
+                  <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.22 19.58 10.57 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
+                  </svg>
+                </div>
+
+                {/* Card Header */}
+                <div className="flex items-start justify-between pb-1.5 border-b border-dashed border-slate-300">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center shrink-0">
+                      <img 
+                        src="/logo.png" 
+                        alt="Logo" 
+                        className="w-5.5 h-5.5 object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="leading-tight">
+                      <h5 className="font-extrabold text-[8px] uppercase text-emerald-600 tracking-wider">KARTU PESERTA UJIAN</h5>
+                      <p className="font-bold text-[10px] text-slate-800 truncate max-w-[130px]">{user.schoolName}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="flex-1 py-2 space-y-0.5 text-[10px] text-slate-800">
+                  <table className="w-full text-left table-auto">
+                    <tbody>
+                      <tr>
+                        <td className="w-18 font-bold text-slate-500 py-0.5">Nama Siswa</td>
+                        <td className="w-2 text-slate-400 py-0.5">:</td>
+                        <td className="font-extrabold text-slate-900 py-0.5 truncate max-w-[150px]">{student.name}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold text-slate-500 py-0.5">Kelas</td>
+                        <td className="text-slate-400 py-0.5">:</td>
+                        <td className="font-extrabold text-slate-800 py-0.5">{student.class}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold text-slate-500 py-0.5">Username</td>
+                        <td className="text-slate-400 py-0.5">:</td>
+                        <td className="py-0.5">
+                          <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-900 text-[9.5px]">
+                            {student.username}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold text-slate-500 py-0.5">Password</td>
+                        <td className="text-slate-400 py-0.5">:</td>
+                        <td className="py-0.5">
+                          <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-indigo-700 text-[9.5px]">
+                            {student.password || "123"}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Card Footer */}
+                <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between">
+                  <span className="text-[8px] text-slate-500 italic">Harap simpan kartu login ini dengan baik</span>
+                  <span className="font-bold text-[9px] text-indigo-700">
+                    https://ecosmartexamapp.pages.dev
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
