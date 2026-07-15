@@ -39,29 +39,57 @@ export default function PwaInstaller() {
     // We removed the sessionStorage check so it will always prompt the user on every fresh load if not installed.
     setShowBanner(true);
 
-    // Capture standard PWA installation prompt
-    const handleBeforeInstallPrompt = (e: Event) => {
+    // Check if the prompt was already captured by index.html early script
+    if ((window as any).deferredSDKPrompt) {
+      setDeferredPrompt((window as any).deferredSDKPrompt);
+      setIsInstallable(true);
+    }
+
+    // Capture standard PWA installation prompt if it fires now
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      (window as any).deferredSDKPrompt = e;
       setIsInstallable(true);
     };
 
+    // Custom listener for the early script
+    const handleCustomPromptEvent = (e: any) => {
+      if (e.detail) {
+        setDeferredPrompt(e.detail);
+        setIsInstallable(true);
+      }
+    };
+
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("pwa-prompt-available", handleCustomPromptEvent);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("pwa-prompt-available", handleCustomPromptEvent);
     };
   }, []);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to install prompt: ${outcome}`);
-      setDeferredPrompt(null);
-      setIsInstallable(false);
+    const activePrompt = deferredPrompt || (window as any).deferredSDKPrompt;
+    
+    if (activePrompt) {
+      try {
+        activePrompt.prompt();
+        const { outcome } = await activePrompt.userChoice;
+        console.log(`User response to install prompt: ${outcome}`);
+        if (outcome === 'accepted') {
+          setDeferredPrompt(null);
+          (window as any).deferredSDKPrompt = null;
+          setIsInstallable(false);
+          setShowBanner(false);
+        }
+      } catch (err) {
+        console.error("Gagal memicu instalasi otomatis:", err);
+        setShowInstructions(true);
+      }
     } else {
-      // Fallback instruction trigger
+      // No native prompt available (e.g. on iOS, WebView, or user engagement not met yet)
       setShowInstructions(true);
     }
   };

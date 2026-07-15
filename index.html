@@ -9,6 +9,14 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/pwa_icon.jpg" />
     <script>
+      // Capture the PWA install prompt at the earliest moment
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredSDKPrompt = e;
+        // Dispatch custom event so React can listen to it if it already mounted
+        window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
+      });
+
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
