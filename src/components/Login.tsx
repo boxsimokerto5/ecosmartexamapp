@@ -94,10 +94,20 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           const sId = principalData.schoolId;
           if (sId) {
             const schoolSnap = await getDoc(doc(db, "schools", sId));
-            if (schoolSnap.exists() && schoolSnap.data().suspended === true) {
-              setError("Maaf, akses portal sekolah Anda ditangguhkan (SUSPENDED) oleh Super Admin. Silakan hubungi administrator.");
-              setLoading(false);
-              return;
+            if (schoolSnap.exists()) {
+              const schoolData = schoolSnap.data();
+              if (schoolData.suspended === true) {
+                setError("Maaf, akses portal sekolah Anda ditangguhkan (SUSPENDED) oleh Super Admin. Silakan hubungi administrator.");
+                setLoading(false);
+                return;
+              }
+              const isExpired = schoolData.subscriptionActive === false || 
+                (schoolData.subscriptionExpiresAt && new Date(schoolData.subscriptionExpiresAt).getTime() < new Date().getTime());
+              if (isExpired) {
+                setError("Maaf, paket berlangganan sekolah Anda saat ini nonaktif atau telah berakhir (expired). Silakan hubungi administrator.");
+                setLoading(false);
+                return;
+              }
             }
           }
           onLoginSuccess({
@@ -160,10 +170,20 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           const sId = teacherData.schoolId;
           if (sId) {
             const schoolSnap = await getDoc(doc(db, "schools", sId));
-            if (schoolSnap.exists() && schoolSnap.data().suspended === true) {
-              setError("Maaf, akses portal sekolah Anda ditangguhkan (SUSPENDED) oleh Super Admin. Silakan hubungi administrator.");
-              setLoading(false);
-              return;
+            if (schoolSnap.exists()) {
+              const schoolData = schoolSnap.data();
+              if (schoolData.suspended === true) {
+                setError("Maaf, akses portal sekolah Anda ditangguhkan (SUSPENDED) oleh Super Admin. Silakan hubungi administrator.");
+                setLoading(false);
+                return;
+              }
+              const isExpired = schoolData.subscriptionActive === false || 
+                (schoolData.subscriptionExpiresAt && new Date(schoolData.subscriptionExpiresAt).getTime() < new Date().getTime());
+              if (isExpired) {
+                setError("Maaf, paket berlangganan sekolah Anda saat ini nonaktif atau telah berakhir (expired). Silakan hubungi administrator.");
+                setLoading(false);
+                return;
+              }
             }
             
             // Check user limit capacity
@@ -234,10 +254,20 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           const sId = studentData.schoolId;
           if (sId) {
             const schoolSnap = await getDoc(doc(db, "schools", sId));
-            if (schoolSnap.exists() && schoolSnap.data().suspended === true) {
-              setError("Maaf, akses portal sekolah Anda ditangguhkan (SUSPENDED) oleh Super Admin. Silakan hubungi administrator.");
-              setLoading(false);
-              return;
+            if (schoolSnap.exists()) {
+              const schoolData = schoolSnap.data();
+              if (schoolData.suspended === true) {
+                setError("Maaf, akses portal sekolah Anda ditangguhkan (SUSPENDED) oleh Super Admin. Silakan hubungi administrator.");
+                setLoading(false);
+                return;
+              }
+              const isExpired = schoolData.subscriptionActive === false || 
+                (schoolData.subscriptionExpiresAt && new Date(schoolData.subscriptionExpiresAt).getTime() < new Date().getTime());
+              if (isExpired) {
+                setError("Maaf, paket berlangganan sekolah Anda saat ini nonaktif atau telah berakhir (expired). Silakan hubungi administrator.");
+                setLoading(false);
+                return;
+              }
             }
 
             // Check user limit capacity
