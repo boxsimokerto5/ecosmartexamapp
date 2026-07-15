@@ -332,6 +332,41 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [selectedClassesForEdit, setSelectedClassesForEdit] = useState<string[]>([]);
 
+  // Custom confirmation modal states to avoid window.confirm block in sandboxed iframes
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Hapus",
+    cancelText: "Batal",
+    onConfirm: () => {},
+  });
+
+  // Custom toast notification states to avoid window.alert block in sandboxed iframes
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error" | "info";
+  }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
   useEffect(() => {
     setLoading(true);
     let classesLoaded = false;
@@ -522,29 +557,45 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
   };
 
   // Handler: Delete Class
-  const handleDeleteClass = async (classId: string, className: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus kelas "${className}"?`)) {
-      try {
-        await deleteDoc(doc(db, "classes", classId));
-        alert(`Kelas "${className}" berhasil dihapus.`);
-      } catch (err) {
-        console.error(err);
-        alert("Gagal menghapus kelas.");
-      }
-    }
+  const handleDeleteClass = (classId: string, className: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Kelas resmi",
+      message: `Apakah Anda yakin ingin menghapus kelas "${className}"? Semua data yang terkait dengan kelas ini akan terpengaruh.`,
+      confirmText: "Hapus Kelas",
+      cancelText: "Batal",
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "classes", classId));
+          showToast(`Kelas "${className}" berhasil dihapus.`, "success");
+        } catch (err) {
+          console.error(err);
+          showToast("Gagal menghapus kelas.", "error");
+        }
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
   // Handler: Delete Teacher
-  const handleDeleteTeacher = async (teacherId: string, teacherName: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus akun guru "${teacherName}"?`)) {
-      try {
-        await deleteDoc(doc(db, "teachers", teacherId));
-        alert(`Akun guru "${teacherName}" berhasil dihapus.`);
-      } catch (err) {
-        console.error(err);
-        alert("Gagal menghapus guru.");
-      }
-    }
+  const handleDeleteTeacher = (teacherId: string, teacherName: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Akun Guru",
+      message: `Apakah Anda yakin ingin menghapus akun guru "${teacherName}"? Seluruh hak akses dan data kelas terkait guru tersebut akan dihapus.`,
+      confirmText: "Hapus Guru",
+      cancelText: "Batal",
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "teachers", teacherId));
+          showToast(`Akun guru "${teacherName}" berhasil dihapus.`, "success");
+        } catch (err) {
+          console.error(err);
+          showToast("Gagal menghapus guru.", "error");
+        }
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
   // Handler: Save Teacher Class Assignment
@@ -554,9 +605,10 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
         classes: selectedClassesForEdit
       }, { merge: true });
       setEditingTeacherId(null);
+      showToast("Penugasan kelas berhasil diperbarui!", "success");
     } catch (err) {
       console.error(err);
-      alert("Gagal memperbarui penugasan kelas.");
+      showToast("Gagal memperbarui penugasan kelas.", "error");
     }
   };
 
@@ -1426,6 +1478,95 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
 
         </div>
       </main>
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto animate-fadeIn" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background backdrop */}
+            <div 
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fadeIn" 
+              aria-hidden="true"
+              onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+            ></div>
+
+            {/* This element is to trick the browser into centering the modal contents. */}
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            {/* Modal panel */}
+            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100 animate-fadeIn">
+              <div className="bg-white px-6 pt-6 pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-rose-50 text-rose-600 sm:mx-0 sm:h-10 sm:w-10">
+                    <Trash2 className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight" id="modal-title">
+                      {confirmModal.title}
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+                        {confirmModal.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-slate-50 px-6 py-4 sm:flex sm:flex-row-reverse gap-2">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto inline-flex justify-center rounded-xl border border-transparent px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                  onClick={confirmModal.onConfirm}
+                >
+                  {confirmModal.confirmText}
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center rounded-xl border border-slate-200 px-4 py-2 bg-white text-slate-700 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 transition-all cursor-pointer"
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                >
+                  {confirmModal.cancelText}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Toast Notification */}
+      {toast.show && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm w-full bg-white rounded-2xl shadow-lg border border-slate-150 p-4 flex items-center gap-3 animate-fadeIn">
+          <div className={`p-2 rounded-xl shrink-0 ${
+            toast.type === "success" 
+              ? "bg-emerald-50 text-emerald-600" 
+              : toast.type === "error" 
+                ? "bg-rose-50 text-rose-600" 
+                : "bg-indigo-50 text-indigo-600"
+          }`}>
+            {toast.type === "success" ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : toast.type === "error" ? (
+              <AlertCircle className="w-5 h-5" />
+            ) : (
+              <Sparkles className="w-5 h-5" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-800 leading-tight">
+              {toast.type === "success" ? "Sukses" : toast.type === "error" ? "Kesalahan" : "Informasi"}
+            </p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed truncate">
+              {toast.message}
+            </p>
+          </div>
+          <button 
+            onClick={() => setToast(prev => ({ ...prev, show: false }))}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
