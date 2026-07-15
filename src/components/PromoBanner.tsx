@@ -152,7 +152,7 @@ export default function PromoBanner({ onClose }: PromoBannerProps) {
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-white border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center shadow-xs">
             <img 
-              src="/logo.png" 
+              src="/logo.svg" 
               alt="Eco Smart Exam Logo" 
               className="w-full h-full object-contain p-1"
               referrerPolicy="no-referrer"

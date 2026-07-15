@@ -1417,7 +1417,7 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
             <img 
-              src="/logo.png" 
+              src="/logo.svg" 
               alt="Eco Smart Exam Logo" 
               className="w-full h-full object-contain p-1"
               referrerPolicy="no-referrer"
@@ -3560,7 +3560,7 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                               <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 bg-emerald-50 rounded-lg border border-emerald-100 flex items-center justify-center shrink-0">
                                   <img 
-                                    src="/logo.png" 
+                                    src="/logo.svg" 
                                     alt="Logo" 
                                     className="w-4.5 h-4.5 object-contain"
                                     referrerPolicy="no-referrer"
@@ -3707,7 +3707,7 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center shrink-0">
                       <img 
-                        src="/logo.png" 
+                        src="/logo.svg" 
                         alt="Logo" 
                         className="w-5.5 h-5.5 object-contain"
                         referrerPolicy="no-referrer"

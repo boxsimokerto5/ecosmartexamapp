@@ -332,22 +332,12 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [selectedClassesForEdit, setSelectedClassesForEdit] = useState<string[]>([]);
 
-  // Custom confirmation modal states to avoid window.confirm block in sandboxed iframes
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmText: string;
-    cancelText: string;
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    confirmText: "Hapus",
-    cancelText: "Batal",
-    onConfirm: () => {},
-  });
+  // Declarative target for deletion to completely avoid storing closures/functions in state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+    type: "class" | "teacher" | null;
+  }>({ id: "", name: "", type: null });
 
   // Custom toast notification states to avoid window.alert block in sandboxed iframes
   const [toast, setToast] = useState<{
@@ -556,46 +546,41 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
     }
   };
 
-  // Handler: Delete Class
+  // Handler: Initiate Class Deletion
   const handleDeleteClass = (classId: string, className: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: "Hapus Kelas resmi",
-      message: `Apakah Anda yakin ingin menghapus kelas "${className}"? Semua data yang terkait dengan kelas ini akan terpengaruh.`,
-      confirmText: "Hapus Kelas",
-      cancelText: "Batal",
-      onConfirm: async () => {
-        try {
-          await deleteDoc(doc(db, "classes", classId));
-          showToast(`Kelas "${className}" berhasil dihapus.`, "success");
-        } catch (err) {
-          console.error(err);
-          showToast("Gagal menghapus kelas.", "error");
-        }
-        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-      },
+    setDeleteTarget({
+      id: classId,
+      name: className,
+      type: "class"
     });
   };
 
-  // Handler: Delete Teacher
+  // Handler: Initiate Teacher Deletion
   const handleDeleteTeacher = (teacherId: string, teacherName: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: "Hapus Akun Guru",
-      message: `Apakah Anda yakin ingin menghapus akun guru "${teacherName}"? Seluruh hak akses dan data kelas terkait guru tersebut akan dihapus.`,
-      confirmText: "Hapus Guru",
-      cancelText: "Batal",
-      onConfirm: async () => {
-        try {
-          await deleteDoc(doc(db, "teachers", teacherId));
-          showToast(`Akun guru "${teacherName}" berhasil dihapus.`, "success");
-        } catch (err) {
-          console.error(err);
-          showToast("Gagal menghapus guru.", "error");
-        }
-        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-      },
+    setDeleteTarget({
+      id: teacherId,
+      name: teacherName,
+      type: "teacher"
     });
+  };
+
+  // Handler: Confirm Execution of Deletion
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget.type) return;
+    const { id, name, type } = deleteTarget;
+    try {
+      if (type === "class") {
+        await deleteDoc(doc(db, "classes", id));
+        showToast(`Kelas "${name}" berhasil dihapus.`, "success");
+      } else if (type === "teacher") {
+        await deleteDoc(doc(db, "teachers", id));
+        showToast(`Akun guru "${name}" berhasil dihapus.`, "success");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(`Gagal menghapus ${type === "class" ? "kelas" : "guru"}.`, "error");
+    }
+    setDeleteTarget({ id: "", name: "", type: null });
   };
 
   // Handler: Save Teacher Class Assignment
@@ -726,7 +711,7 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
               <img 
-                src="/logo.png" 
+                src="/logo.svg" 
                 alt="Eco Smart Exam Logo" 
                 className="w-full h-full object-contain p-1"
                 referrerPolicy="no-referrer"
@@ -1480,14 +1465,14 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
       </main>
 
       {/* Custom Confirmation Modal */}
-      {confirmModal.isOpen && (
+      {deleteTarget.type && (
         <div className="fixed inset-0 z-50 overflow-y-auto animate-fadeIn" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             {/* Background backdrop */}
             <div 
               className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fadeIn" 
               aria-hidden="true"
-              onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+              onClick={() => setDeleteTarget({ id: "", name: "", type: null })}
             ></div>
 
             {/* This element is to trick the browser into centering the modal contents. */}
@@ -1502,11 +1487,13 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight" id="modal-title">
-                      {confirmModal.title}
+                      {deleteTarget.type === "class" ? "Hapus Kelas Resmi" : "Hapus Akun Guru"}
                     </h3>
                     <div className="mt-2">
                       <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                        {confirmModal.message}
+                        {deleteTarget.type === "class" 
+                          ? `Apakah Anda yakin ingin menghapus kelas "${deleteTarget.name}"? Semua data yang terkait dengan kelas ini akan terpengaruh.`
+                          : `Apakah Anda yakin ingin menghapus akun guru "${deleteTarget.name}"? Seluruh hak akses dan data kelas terkait guru tersebut akan dihapus.`}
                       </p>
                     </div>
                   </div>
@@ -1516,16 +1503,16 @@ export default function KepalaDashboard({ user, onLogout }: KepalaDashboardProps
                 <button
                   type="button"
                   className="w-full sm:w-auto inline-flex justify-center rounded-xl border border-transparent px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
-                  onClick={confirmModal.onConfirm}
+                  onClick={handleConfirmDelete}
                 >
-                  {confirmModal.confirmText}
+                  {deleteTarget.type === "class" ? "Hapus Kelas" : "Hapus Guru"}
                 </button>
                 <button
                   type="button"
                   className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center rounded-xl border border-slate-200 px-4 py-2 bg-white text-slate-700 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 transition-all cursor-pointer"
-                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  onClick={() => setDeleteTarget({ id: "", name: "", type: null })}
                 >
-                  {confirmModal.cancelText}
+                  Batal
                 </button>
               </div>
             </div>

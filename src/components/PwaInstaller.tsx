@@ -122,7 +122,7 @@ export default function PwaInstaller() {
           {/* Logo PWA */}
           <div className="w-11 h-11 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-center shrink-0 mt-0.5 shadow-xs relative">
             <img 
-              src="/logo.png" 
+              src="/logo.svg" 
               alt="Logo" 
               className="w-7 h-7 object-contain rounded-md"
               referrerPolicy="no-referrer"

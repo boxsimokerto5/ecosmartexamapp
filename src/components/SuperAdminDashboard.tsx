@@ -433,7 +433,7 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
               <img 
-                src="/logo.png" 
+                src="/logo.svg" 
                 alt="Eco Smart Exam Logo" 
                 className="w-full h-full object-contain p-1"
                 referrerPolicy="no-referrer"
