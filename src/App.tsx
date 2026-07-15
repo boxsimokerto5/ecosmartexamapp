@@ -7,6 +7,7 @@ import GuruDashboard from "./components/GuruDashboard";
 import SiswaDashboard from "./components/SiswaDashboard";
 import SplashScreen from "./components/SplashScreen";
 import PromoBanner from "./components/PromoBanner";
+import PwaInstaller from "./components/PwaInstaller";
 import { RefreshCw } from "lucide-react";
 
 interface AppUser {
@@ -88,6 +89,7 @@ export default function App() {
       ) : (
         <SiswaDashboard user={user as any} onLogout={handleLogout} />
       )}
+      <PwaInstaller />
     </div>
   );
 }
