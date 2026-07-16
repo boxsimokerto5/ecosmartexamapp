@@ -473,7 +473,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           {/* Try Demo Accounts section */}
           <div className="mt-5 pt-5 border-t border-dashed border-slate-200">
             <div className="flex items-center justify-center gap-1.5 mb-3">
-              <FlaskConical className="w-4 h-4 text-emerald-600 animate-pulse" />
+              <FlaskConical className="w-4 h-4 text-emerald-600 shrink-0" />
               <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider text-center">
                 Mencoba Lingkungan Akun Demo
               </p>
@@ -482,7 +482,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <button
                 type="button"
                 onClick={() => handleDemoLogin("siswa")}
-                className="py-3 px-1 bg-emerald-50/70 hover:bg-emerald-100/80 active:scale-95 border border-emerald-200/60 text-emerald-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
+                className="py-3 px-1 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/60 text-emerald-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-emerald-200/80"
               >
                 <User className="w-5 h-5 text-emerald-600" />
                 <span>Siswa Demo</span>
@@ -490,7 +490,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <button
                 type="button"
                 onClick={() => handleDemoLogin("guru")}
-                className="py-3 px-1 bg-indigo-50/70 hover:bg-indigo-100/80 active:scale-95 border border-indigo-200/60 text-indigo-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
+                className="py-3 px-1 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/60 text-indigo-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-indigo-200/80"
               >
                 <BookOpen className="w-5 h-5 text-indigo-600" />
                 <span>Guru Demo</span>
@@ -498,7 +498,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <button
                 type="button"
                 onClick={() => handleDemoLogin("kepala_sekolah")}
-                className="py-3 px-1 bg-amber-50/70 hover:bg-amber-100/80 active:scale-95 border border-amber-200/60 text-amber-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm"
+                className="py-3 px-1 bg-amber-50/70 hover:bg-amber-100 border border-amber-200/60 text-amber-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-amber-200/80"
               >
                 <Award className="w-5 h-5 text-amber-600" />
                 <span>Kepala Demo</span>
