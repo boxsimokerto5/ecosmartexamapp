@@ -228,12 +228,22 @@ export async function generateStudentExamPDF(result: Result, exam: Exam) {
     exam.questions.forEach((q, idx) => {
       const studentAnsIdx = result.answers[q.id];
       const isAnswered = studentAnsIdx !== undefined;
-      const isCorrect = isAnswered && studentAnsIdx === q.correctAnswer;
+
+      let isCorrect = false;
+      let earnedPts = 0;
+
+      if (q.type === "isian") {
+        earnedPts = result.essayScores?.[q.id] ?? 0;
+        isCorrect = isAnswered && earnedPts === (q.points || 10);
+      } else {
+        isCorrect = isAnswered && Number(studentAnsIdx) === Number(q.correctAnswer);
+        earnedPts = isCorrect ? (q.points || 10) : 0;
+      }
 
       // Estimate required height for the question block
-      // 1 line for text, 4 lines for options, some spacing
       const linesQuestion = doc.splitTextToSize(`${idx + 1}. ${q.text}`, contentWidth);
-      const neededHeight = (linesQuestion.length * 5) + (q.options.length * 5.5) + 20;
+      const optionsCount = q.type === "isian" ? 0 : (q.options ? q.options.length : 0);
+      const neededHeight = (linesQuestion.length * 5) + (optionsCount * 5.5) + (q.type === "isian" ? 25 : 20);
 
       checkPageBreak(neededHeight);
 
@@ -247,37 +257,63 @@ export async function generateStudentExamPDF(result: Result, exam: Exam) {
         currentY += 4.5;
       });
 
-      // Options List
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(51, 65, 85);
+      if (q.type === "isian") {
+        // Render Essay Student Answer and Keyword Key
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
 
-      q.options.forEach((opt, optIdx) => {
-        const isChosenByStudent = studentAnsIdx === optIdx;
-        const isCorrectOption = q.correctAnswer === optIdx;
+        const ansLine = `Jawaban Siswa: ${studentAnsIdx !== undefined ? String(studentAnsIdx) : "[Tidak Menjawab]"}`;
+        const keyLine = `Kunci Koreksi Otomatis: ${String(q.correctAnswer)}`;
 
-        let optPrefix = `${getOptionLabel(optIdx)}. `;
-        let optText = opt;
-
-        if (isCorrectOption) {
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(4, 120, 87); // bold emerald for correct option
-          optPrefix += "[KUNCI JAWABAN] ";
-        } else if (isChosenByStudent && !isCorrect) {
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(185, 28, 28); // bold rose for student wrong choice
-          optPrefix += "[PILIHAN SISWA] ";
-        } else {
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(71, 85, 105);
-        }
-
-        const linesOpt = doc.splitTextToSize(`${optPrefix}${optText}`, contentWidth - 8);
-        linesOpt.forEach((line: string) => {
+        const linesAns = doc.splitTextToSize(ansLine, contentWidth - 8);
+        linesAns.forEach((line: string) => {
           doc.text(line, leftMargin + 6, currentY);
           currentY += 4.5;
         });
-      });
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(4, 120, 87);
+        const linesKey = doc.splitTextToSize(keyLine, contentWidth - 8);
+        linesKey.forEach((line: string) => {
+          doc.text(line, leftMargin + 6, currentY);
+          currentY += 4.5;
+        });
+      } else {
+        // Options List (for MC)
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(51, 65, 85);
+
+        if (q.options) {
+          q.options.forEach((opt, optIdx) => {
+            const isChosenByStudent = Number(studentAnsIdx) === optIdx;
+            const isCorrectOption = Number(q.correctAnswer) === optIdx;
+
+            let optPrefix = `${getOptionLabel(optIdx)}. `;
+            let optText = opt;
+
+            if (isCorrectOption) {
+              doc.setFont("helvetica", "bold");
+              doc.setTextColor(4, 120, 87); // bold emerald for correct option
+              optPrefix += "[KUNCI JAWABAN] ";
+            } else if (isChosenByStudent && !isCorrect) {
+              doc.setFont("helvetica", "bold");
+              doc.setTextColor(185, 28, 28); // bold rose for student wrong choice
+              optPrefix += "[PILIHAN SISWA] ";
+            } else {
+              doc.setFont("helvetica", "normal");
+              doc.setTextColor(71, 85, 105);
+            }
+
+            const linesOpt = doc.splitTextToSize(`${optPrefix}${optText}`, contentWidth - 8);
+            linesOpt.forEach((line: string) => {
+              doc.text(line, leftMargin + 6, currentY);
+              currentY += 4.5;
+            });
+          });
+        }
+      }
 
       // Answer Status Summary line
       currentY += 1.5;
@@ -286,17 +322,31 @@ export async function generateStudentExamPDF(result: Result, exam: Exam) {
       if (!isAnswered) {
         doc.setTextColor(180, 83, 9); // amber
         doc.text("-> Status: TIDAK DIJAWAB (0 Poin)", leftMargin + 6, currentY);
+      } else if (q.type === "isian") {
+        if (earnedPts === (q.points || 10)) {
+          doc.setTextColor(4, 120, 87); // green
+          doc.text(`-> Status: BENAR (+${earnedPts} Poin)`, leftMargin + 6, currentY);
+        } else if (earnedPts > 0) {
+          doc.setTextColor(180, 83, 9); // amber
+          doc.text(`-> Status: SEBAGIAN (+${earnedPts} Poin)`, leftMargin + 6, currentY);
+        } else {
+          doc.setTextColor(185, 28, 28); // red
+          doc.text(`-> Status: SALAH (0 Poin)`, leftMargin + 6, currentY);
+        }
       } else if (isCorrect) {
         doc.setTextColor(4, 120, 87); // green
         doc.text(`-> Status: BENAR (+${q.points || 10} Poin)`, leftMargin + 6, currentY);
       } else {
         doc.setTextColor(185, 28, 28); // red
-        doc.text(`-> Status: SALAH (Dipilih: ${getOptionLabel(studentAnsIdx)}, Seharusnya: ${getOptionLabel(q.correctAnswer)}) (0 Poin)`, leftMargin + 6, currentY);
+        doc.text(`-> Status: SALAH (Dipilih: ${getOptionLabel(Number(studentAnsIdx))}, Seharusnya: ${getOptionLabel(Number(q.correctAnswer))}) (0 Poin)`, leftMargin + 6, currentY);
       }
       currentY += 4.5;
 
       // Explanation if available
-      const explanationText = q.explanation || `Kunci jawaban yang benar adalah opsi ${getOptionLabel(q.correctAnswer)}.`;
+      const defaultExplanation = q.type === "isian" 
+        ? `Kunci koreksi essay adalah: ${String(q.correctAnswer)}.` 
+        : `Kunci jawaban yang benar adalah opsi ${getOptionLabel(Number(q.correctAnswer))}.`;
+      const explanationText = q.explanation || defaultExplanation;
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);

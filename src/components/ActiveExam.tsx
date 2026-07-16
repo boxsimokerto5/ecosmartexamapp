@@ -12,7 +12,7 @@ interface ActiveExamProps {
   studentName: string;
   studentClass: string;
   onFinish: () => void;
-  initialAnswers?: Record<string, number>;
+  initialAnswers?: Record<string, number | string>;
   initialDurationSpent?: number;
 }
 
@@ -26,7 +26,7 @@ export default function ActiveExam({
   initialDurationSpent = 0
 }: ActiveExamProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>(initialAnswers);
+  const [answers, setAnswers] = useState<Record<string, number | string>>(initialAnswers);
   const [timeLeft, setTimeLeft] = useState(Math.max(0, exam.duration * 60 - initialDurationSpent)); // seconds
   const [durationSpent, setDurationSpent] = useState(initialDurationSpent); // seconds spent
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +37,7 @@ export default function ActiveExam({
     correctCount: number;
     totalQuestions: number;
     durationSpent: number;
-    answers: Record<string, number>;
+    answers: Record<string, number | string>;
   } | null>(null);
 
   // Custom modal states to replace window.confirm and alert
@@ -175,22 +175,54 @@ export default function ActiveExam({
     await submitExam(answers, durationSpent);
   };
 
-  const submitExam = async (currentAnswers: Record<string, number>, currentDuration: number) => {
+  const submitExam = async (currentAnswers: Record<string, number | string>, currentDuration: number) => {
     setIsSubmitting(true);
     isSubmittingRef.current = true;
     if (syncRef.current) clearInterval(syncRef.current);
 
-    // Calculate score
+    // Calculate score based on point weights
+    let earnedPoints = 0;
+    let totalMaxPoints = 0;
     let correctCount = 0;
+    let hasEssay = false;
+    const initialEssayScores: Record<string, number> = {};
+
     exam.questions.forEach((q) => {
       const chosen = currentAnswers[q.id];
-      if (chosen !== undefined && chosen === q.correctAnswer) {
-        correctCount += 1;
+      const maxPts = q.points || 10;
+      totalMaxPoints += maxPts;
+
+      if (q.type === "isian") {
+        hasEssay = true;
+        // Case-insensitive keyword matching
+        const studentAns = String(chosen || "").trim().toLowerCase();
+        const keywords = String(q.correctAnswer || "")
+          .split(",")
+          .map((k) => k.trim().toLowerCase())
+          .filter(Boolean);
+
+        const isMatch = keywords.some(
+          (kw) => studentAns === kw || (studentAns.length > 2 && studentAns.includes(kw))
+        );
+
+        if (isMatch && studentAns.length > 0) {
+          initialEssayScores[q.id] = maxPts;
+          earnedPoints += maxPts;
+          correctCount += 1;
+        } else {
+          initialEssayScores[q.id] = 0;
+        }
+      } else {
+        // Pilihan ganda
+        if (chosen !== undefined && Number(chosen) === Number(q.correctAnswer)) {
+          earnedPoints += maxPts;
+          correctCount += 1;
+        }
       }
     });
 
     const totalQuestions = exam.questions.length;
-    const finalScore = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+    const finalScore = totalMaxPoints > 0 ? Math.round((earnedPoints / totalMaxPoints) * 100) : 0;
 
     try {
       // Update result record in Firestore
@@ -201,7 +233,9 @@ export default function ActiveExam({
         correctCount: correctCount,
         totalQuestions: totalQuestions,
         submittedAt: new Date().toISOString(),
-        durationSpent: currentDuration
+        durationSpent: currentDuration,
+        essayScores: initialEssayScores,
+        gradedByTeacher: !hasEssay
       });
 
       // Send an automated notification to this student
@@ -410,42 +444,55 @@ export default function ActiveExam({
                     )}
 
                     {/* Options Details */}
-                    <div className="grid grid-cols-1 gap-2.5">
-                      {q.options.map((opt, optIdx) => {
-                        const isChosenByStudent = studentAnswerIdx === optIdx;
-                        const isThisCorrectAnswer = q.correctAnswer === optIdx;
+                    {q.type === "isian" ? (
+                      <div className="space-y-2">
+                        <div className="p-3.5 rounded-xl border-2 border-slate-150 bg-slate-50 text-xs">
+                          <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Jawaban Anda:</div>
+                          <div className="font-mono text-slate-800 bg-white p-2 rounded-lg border border-slate-200">{String(studentAnswerIdx ?? "-")}</div>
+                        </div>
+                        <div className="p-3.5 rounded-xl border-2 border-emerald-100 bg-emerald-50/20 text-xs">
+                          <div className="text-emerald-600 font-bold uppercase tracking-wider text-[10px] mb-1">Kunci Jawaban Soal:</div>
+                          <div className="font-mono text-emerald-800 bg-white p-2 rounded-lg border border-emerald-150 font-bold">{String(q.correctAnswer)}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {q.options && q.options.map((opt, optIdx) => {
+                          const isChosenByStudent = studentAnswerIdx === optIdx;
+                          const isThisCorrectAnswer = q.correctAnswer === optIdx;
 
-                        let optStyle = "bg-slate-50 border-slate-200 text-slate-600";
-                        let iconToRender = null;
+                          let optStyle = "bg-slate-50 border-slate-200 text-slate-600";
+                          let iconToRender = null;
 
-                        if (isThisCorrectAnswer) {
-                          optStyle = "bg-emerald-500/5 border-emerald-300 text-emerald-900 font-semibold ring-1 ring-emerald-300";
-                          iconToRender = <Check className="w-4 h-4 text-emerald-600 shrink-0" />;
-                        } else if (isChosenByStudent && !isCorrect) {
-                          optStyle = "bg-rose-50 border-rose-300 text-rose-900 font-medium ring-1 ring-rose-300";
-                          iconToRender = <X className="w-4 h-4 text-rose-600 shrink-0" />;
-                        }
+                          if (isThisCorrectAnswer) {
+                            optStyle = "bg-emerald-500/5 border-emerald-300 text-emerald-900 font-semibold ring-1 ring-emerald-300";
+                            iconToRender = <Check className="w-4 h-4 text-emerald-600 shrink-0" />;
+                          } else if (isChosenByStudent && !isCorrect) {
+                            optStyle = "bg-rose-50 border-rose-300 text-rose-900 font-medium ring-1 ring-rose-300";
+                            iconToRender = <X className="w-4 h-4 text-rose-600 shrink-0" />;
+                          }
 
-                        return (
-                          <div
-                            key={optIdx}
-                            className={`flex items-start gap-3 p-3 rounded-xl border text-xs transition-all ${optStyle}`}
-                          >
-                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                              isThisCorrectAnswer
-                                ? "bg-emerald-600 text-white"
-                                : isChosenByStudent && !isCorrect
-                                ? "bg-rose-600 text-white"
-                                : "bg-slate-200 text-slate-600"
-                            }`}>
-                              {getOptionLabel(optIdx)}
+                          return (
+                            <div
+                              key={optIdx}
+                              className={`flex items-start gap-3 p-3 rounded-xl border text-xs transition-all ${optStyle}`}
+                            >
+                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                                isThisCorrectAnswer
+                                  ? "bg-emerald-600 text-white"
+                                  : isChosenByStudent && !isCorrect
+                                  ? "bg-rose-600 text-white"
+                                  : "bg-slate-200 text-slate-600"
+                              }`}>
+                                {getOptionLabel(optIdx)}
+                              </div>
+                              <span className="flex-1 pt-0.5 leading-relaxed">{opt}</span>
+                              {iconToRender}
                             </div>
-                            <span className="flex-1 pt-0.5 leading-relaxed">{opt}</span>
-                            {iconToRender}
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* Explanation Box */}
                     <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 space-y-3">
@@ -463,44 +510,46 @@ export default function ActiveExam({
                           </div>
                         ) : (
                           <p className="italic text-slate-500 bg-indigo-50/20 p-2.5 rounded-lg border border-dashed border-slate-200">
-                            <strong>Pembahasan Umum:</strong> Kunci jawaban yang benar adalah opsi <strong>{getOptionLabel(q.correctAnswer)}</strong>. Pilihan ini adalah jawaban paling tepat yang menjawab persoalan di atas berdasarkan ketentuan materi pelajaran.
+                            <strong>Pembahasan Umum:</strong> Kunci jawaban yang benar adalah {q.type === "isian" ? <strong>{String(q.correctAnswer)}</strong> : <>opsi <strong>{getOptionLabel(Number(q.correctAnswer))}</strong></>}. Pilihan ini adalah jawaban paling tepat yang menjawab persoalan di atas berdasarkan ketentuan materi pelajaran.
                           </p>
                         )}
 
                         {/* Detailed choice-by-choice explanations */}
-                        <div className="space-y-2 pt-1 border-t border-slate-200">
-                          <h5 className="font-bold text-slate-700">Penjelasan Mengapa Opsi Lain Kurang Tepat:</h5>
-                          <ul className="space-y-1.5 pl-1">
-                            {q.options.map((opt, optIdx) => {
-                              const isCorrectOption = q.correctAnswer === optIdx;
-                              const isStudentChoice = studentAnswerIdx === optIdx;
-                              
-                              return (
-                                <li key={optIdx} className="flex items-start gap-2">
-                                  <span className={`w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5 ${
-                                    isCorrectOption
-                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                      : "bg-slate-100 text-slate-500 border border-slate-200"
-                                  }`}>
-                                    {getOptionLabel(optIdx)}
-                                  </span>
-                                  <div className="text-[11px]">
-                                    <span className="font-semibold text-slate-700">{opt}: </span>
-                                    {isCorrectOption ? (
-                                      <span className="text-emerald-700 font-medium">
-                                        (Opsi Benar) Pilihan jawaban yang tepat sesuai esensi materi soal.
-                                      </span>
-                                    ) : (
-                                      <span className="text-slate-500">
-                                        (Opsi Salah) Opsi ini kurang tepat karena tidak memenuhi indikator kompetensi dari pertanyaan. {isStudentChoice && <strong className="text-rose-600 font-medium">(Pilihan Anda)</strong>}
-                                      </span>
-                                    )}
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
+                        {q.type !== "isian" && q.options && (
+                          <div className="space-y-2 pt-1 border-t border-slate-200">
+                            <h5 className="font-bold text-slate-700">Penjelasan Mengapa Opsi Lain Kurang Tepat:</h5>
+                            <ul className="space-y-1.5 pl-1">
+                              {q.options.map((opt, optIdx) => {
+                                const isCorrectOption = Number(q.correctAnswer) === optIdx;
+                                const isStudentChoice = studentAnswerIdx === optIdx;
+                                
+                                return (
+                                  <li key={optIdx} className="flex items-start gap-2">
+                                    <span className={`w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5 ${
+                                      isCorrectOption
+                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                        : "bg-slate-100 text-slate-500 border border-slate-200"
+                                    }`}>
+                                      {getOptionLabel(optIdx)}
+                                    </span>
+                                    <div className="text-[11px]">
+                                      <span className="font-semibold text-slate-700">{opt}: </span>
+                                      {isCorrectOption ? (
+                                        <span className="text-emerald-700 font-medium">
+                                          (Opsi Benar) Pilihan jawaban yang tepat sesuai esensi materi soal.
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-500">
+                                          (Opsi Salah) Opsi ini kurang tepat karena tidak memenuhi indikator kompetensi dari pertanyaan. {isStudentChoice && <strong className="text-rose-600 font-medium">(Pilihan Anda)</strong>}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -649,36 +698,60 @@ export default function ActiveExam({
             </div>
           )}
 
-          {/* Option A, B, C, D targets (At least 44px touch targets) */}
-          <div className="space-y-3.5 pt-4">
-            {activeQuestion.options.map((option, idx) => {
-              const optionLetters = ["A", "B", "C", "D"];
-              const isSelected = answers[activeQuestion.id] === idx;
+          {/* Option A, B, C, D targets or Textarea based on Question Type */}
+          {activeQuestion.type === "isian" ? (
+            <div className="space-y-3 pt-4">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Tuliskan Jawaban Anda:
+              </label>
+              <textarea
+                id="student-answer-textarea"
+                rows={3}
+                placeholder="Ketik jawaban singkat Anda di sini..."
+                value={answers[activeQuestion.id] !== undefined ? String(answers[activeQuestion.id]) : ""}
+                onChange={(e) => {
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [activeQuestion.id]: e.target.value
+                  }));
+                }}
+                className="w-full p-4 border-2 border-slate-150 rounded-xl text-xs md:text-sm bg-slate-50/50 focus:bg-white focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-medium leading-relaxed shadow-2xs"
+              />
+              <p className="text-[10px] text-slate-400 italic">
+                * Pastikan penulisan ejaan benar sesuai dengan materi pelajaran.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3.5 pt-4">
+              {activeQuestion.options && activeQuestion.options.map((option, idx) => {
+                const optionLetters = ["A", "B", "C", "D"];
+                const isSelected = answers[activeQuestion.id] === idx;
 
-              return (
-                <button
-                  id={`btn-option-${idx}`}
-                  key={idx}
-                  type="button"
-                  onClick={() => selectAnswer(activeQuestion.id, idx)}
-                  className={`w-full text-left min-h-[50px] py-3.5 px-5 rounded-xl border-2 text-xs md:text-sm transition-all flex items-center gap-4 cursor-pointer ${
-                    isSelected 
-                      ? "border-indigo-600 bg-indigo-50/40 text-indigo-900 font-semibold" 
-                      : "border-slate-150 bg-white text-slate-700 hover:border-indigo-200"
-                  }`}
-                >
-                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                    isSelected 
-                      ? "bg-indigo-600 text-white" 
-                      : "bg-slate-100 text-slate-500"
-                  }`}>
-                    {optionLetters[idx]}
-                  </span>
-                  <span>{option}</span>
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    id={`btn-option-${idx}`}
+                    key={idx}
+                    type="button"
+                    onClick={() => selectAnswer(activeQuestion.id, idx)}
+                    className={`w-full text-left min-h-[50px] py-3.5 px-5 rounded-xl border-2 text-xs md:text-sm transition-all flex items-center gap-4 cursor-pointer ${
+                      isSelected 
+                        ? "border-indigo-600 bg-indigo-50/40 text-indigo-900 font-semibold" 
+                        : "border-slate-150 bg-white text-slate-700 hover:border-indigo-200"
+                    }`}
+                  >
+                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                      isSelected 
+                        ? "bg-indigo-600 text-white" 
+                        : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {optionLetters[idx]}
+                    </span>
+                    <span>{option}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer actions navigation */}

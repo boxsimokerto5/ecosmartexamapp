@@ -482,25 +482,25 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <button
                 type="button"
                 onClick={() => handleDemoLogin("siswa")}
-                className="py-3 px-1 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/60 text-emerald-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-emerald-200/80"
+                className="py-3 px-1 bg-emerald-50/70 hover:bg-emerald-100 border border-emerald-200/60 text-emerald-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-emerald-200/80 transform-gpu hover:scale-[1.02] will-change-transform"
               >
-                <User className="w-5 h-5 text-emerald-600" />
+                <User className="w-5 h-5 text-emerald-600 crisp-image transform-gpu" />
                 <span>Siswa Demo</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleDemoLogin("guru")}
-                className="py-3 px-1 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/60 text-indigo-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-indigo-200/80"
+                className="py-3 px-1 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/60 text-indigo-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-indigo-200/80 transform-gpu hover:scale-[1.02] will-change-transform"
               >
-                <BookOpen className="w-5 h-5 text-indigo-600" />
+                <BookOpen className="w-5 h-5 text-indigo-600 crisp-image transform-gpu" />
                 <span>Guru Demo</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleDemoLogin("kepala_sekolah")}
-                className="py-3 px-1 bg-amber-50/70 hover:bg-amber-100 border border-amber-200/60 text-amber-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-amber-200/80"
+                className="py-3 px-1 bg-amber-50/70 hover:bg-amber-100 border border-amber-200/60 text-amber-800 font-extrabold text-[10px] sm:text-xs rounded-xl transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-amber-200/80 transform-gpu hover:scale-[1.02] will-change-transform"
               >
-                <Award className="w-5 h-5 text-amber-600" />
+                <Award className="w-5 h-5 text-amber-600 crisp-image transform-gpu" />
                 <span>Kepala Demo</span>
               </button>
             </div>

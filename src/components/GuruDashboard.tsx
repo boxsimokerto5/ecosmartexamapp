@@ -142,7 +142,19 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
   const [selectedExamForQuestions, setSelectedExamForQuestions] = useState<Exam | null>(null);
 
   // New Question Form state
-  const [newQuestion, setNewQuestion] = useState({
+  const [newQuestion, setNewQuestion] = useState<{
+    type: "pilihan_ganda" | "isian";
+    text: string;
+    imageUrl: string;
+    optionA: string;
+    optionB: string;
+    optionC: string;
+    optionD: string;
+    correctAnswer: number | string;
+    points: number;
+    explanation: string;
+  }>({
+    type: "pilihan_ganda",
     text: "",
     imageUrl: "",
     optionA: "",
@@ -759,16 +771,28 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
   const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedExamForQuestions) return;
-    if (!newQuestion.text || !newQuestion.optionA || !newQuestion.optionB || !newQuestion.optionC || !newQuestion.optionD) {
-      alert("Mohon lengkapi isi pertanyaan dan seluruh pilihan jawaban!");
+    
+    if (!newQuestion.text) {
+      alert("Mohon isi teks pertanyaan!");
+      return;
+    }
+
+    const isEssay = newQuestion.type === "isian";
+    if (!isEssay && (!newQuestion.optionA || !newQuestion.optionB || !newQuestion.optionC || !newQuestion.optionD)) {
+      alert("Mohon lengkapi seluruh pilihan jawaban untuk tipe Pilihan Ganda!");
+      return;
+    }
+    if (isEssay && !newQuestion.correctAnswer.toString().trim()) {
+      alert("Mohon isi kata kunci/kunci jawaban untuk tipe Isian!");
       return;
     }
 
     const question: Question = {
       id: `q-${Date.now()}`,
+      type: newQuestion.type,
       text: newQuestion.text,
-      options: [newQuestion.optionA, newQuestion.optionB, newQuestion.optionC, newQuestion.optionD],
-      correctAnswer: Number(newQuestion.correctAnswer),
+      options: isEssay ? [] : [newQuestion.optionA, newQuestion.optionB, newQuestion.optionC, newQuestion.optionD],
+      correctAnswer: isEssay ? newQuestion.correctAnswer.toString().trim() : Number(newQuestion.correctAnswer),
       points: Number(newQuestion.points) || 10,
     };
 
@@ -794,6 +818,7 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
 
       // Reset form
       setNewQuestion({
+        type: "pilihan_ganda",
         text: "",
         imageUrl: "",
         optionA: "",
@@ -2633,83 +2658,132 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                               )}
                             </div>
 
-                            {/* Poin Soal */}
-                            <div>
-                              <label className="block text-[11px] font-semibold text-slate-500 mb-1">Poin Soal</label>
-                              <input
-                                id="question-points"
-                                type="number"
-                                value={newQuestion.points}
-                                onChange={(e) => setNewQuestion({ ...newQuestion, points: parseInt(e.target.value) || 10 })}
-                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Tipe & Poin Soal */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
                               <div>
-                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban A</label>
-                                <input
-                                  id="opt-a"
-                                  type="text"
-                                  placeholder="Pilihan A..."
-                                  value={newQuestion.optionA}
-                                  onChange={(e) => setNewQuestion({ ...newQuestion, optionA: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
-                                  required
-                                />
+                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Tipe Pertanyaan</label>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setNewQuestion({ ...newQuestion, type: "pilihan_ganda", correctAnswer: 0 })}
+                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                      newQuestion.type === "pilihan_ganda"
+                                        ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-3xs"
+                                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    Pilihan Ganda
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setNewQuestion({ ...newQuestion, type: "isian", correctAnswer: "" })}
+                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                      newQuestion.type === "isian"
+                                        ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-3xs"
+                                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    Isian / Essay
+                                  </button>
+                                </div>
                               </div>
                               <div>
-                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban B</label>
+                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Poin Soal</label>
                                 <input
-                                  id="opt-b"
-                                  type="text"
-                                  placeholder="Pilihan B..."
-                                  value={newQuestion.optionB}
-                                  onChange={(e) => setNewQuestion({ ...newQuestion, optionB: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
-                                  required
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban C</label>
-                                <input
-                                  id="opt-c"
-                                  type="text"
-                                  placeholder="Pilihan C..."
-                                  value={newQuestion.optionC}
-                                  onChange={(e) => setNewQuestion({ ...newQuestion, optionC: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
-                                  required
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban D</label>
-                                <input
-                                  id="opt-d"
-                                  type="text"
-                                  placeholder="Pilihan D..."
-                                  value={newQuestion.optionD}
-                                  onChange={(e) => setNewQuestion({ ...newQuestion, optionD: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
-                                  required
+                                  id="question-points"
+                                  type="number"
+                                  value={newQuestion.points}
+                                  onChange={(e) => setNewQuestion({ ...newQuestion, points: parseInt(e.target.value) || 10 })}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                 />
                               </div>
                             </div>
 
-                            <div>
-                              <label className="block text-[11px] font-semibold text-slate-500 mb-1">Jawaban yang Benar</label>
-                              <select
-                                id="select-correct-answer"
-                                value={newQuestion.correctAnswer}
-                                onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: parseInt(e.target.value) })}
-                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              >
-                                <option value={0}>Pilihan A</option>
-                                <option value={1}>Pilihan B</option>
-                                <option value={2}>Pilihan C</option>
-                                <option value={3}>Pilihan D</option>
-                              </select>
-                            </div>
+                            {newQuestion.type === "pilihan_ganda" ? (
+                              <>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban A</label>
+                                    <input
+                                      id="opt-a"
+                                      type="text"
+                                      placeholder="Pilihan A..."
+                                      value={newQuestion.optionA}
+                                      onChange={(e) => setNewQuestion({ ...newQuestion, optionA: e.target.value })}
+                                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
+                                      required={newQuestion.type === "pilihan_ganda"}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban B</label>
+                                    <input
+                                      id="opt-b"
+                                      type="text"
+                                      placeholder="Pilihan B..."
+                                      value={newQuestion.optionB}
+                                      onChange={(e) => setNewQuestion({ ...newQuestion, optionB: e.target.value })}
+                                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
+                                      required={newQuestion.type === "pilihan_ganda"}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban C</label>
+                                    <input
+                                      id="opt-c"
+                                      type="text"
+                                      placeholder="Pilihan C..."
+                                      value={newQuestion.optionC}
+                                      onChange={(e) => setNewQuestion({ ...newQuestion, optionC: e.target.value })}
+                                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
+                                      required={newQuestion.type === "pilihan_ganda"}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">Opsi Jawaban D</label>
+                                    <input
+                                      id="opt-d"
+                                      type="text"
+                                      placeholder="Pilihan D..."
+                                      value={newQuestion.optionD}
+                                      onChange={(e) => setNewQuestion({ ...newQuestion, optionD: e.target.value })}
+                                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
+                                      required={newQuestion.type === "pilihan_ganda"}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">Jawaban yang Benar</label>
+                                  <select
+                                    id="select-correct-answer"
+                                    value={typeof newQuestion.correctAnswer === "number" ? newQuestion.correctAnswer : 0}
+                                    onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: parseInt(e.target.value) })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  >
+                                    <option value={0}>Pilihan A</option>
+                                    <option value={1}>Pilihan B</option>
+                                    <option value={2}>Pilihan C</option>
+                                    <option value={3}>Pilihan D</option>
+                                  </select>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">Kunci Jawaban Isian / Kata Kunci</label>
+                                <textarea
+                                  id="correct-answer-text"
+                                  placeholder="Contoh: oksigen, o2, udara bersih"
+                                  value={typeof newQuestion.correctAnswer === "string" ? newQuestion.correctAnswer : ""}
+                                  onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                                  rows={2}
+                                  required={newQuestion.type === "isian"}
+                                />
+                                <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                                  * Pisahkan kemungkinan jawaban yang benar menggunakan koma (,), misalnya jika siswa mengetik <code className="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono font-bold text-indigo-600">oksigen</code> atau <code className="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono font-bold text-indigo-600">o2</code> keduanya dianggap benar. Koreksi bersifat <strong>tidak sensitif huruf besar/kecil (case-insensitive)</strong> dan spasi di awal/akhir akan diabaikan secara otomatis.
+                                </p>
+                              </div>
+                            )}
 
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-500 mb-1">Pembahasan / Penjelasan Jawaban (Opsional)</label>
@@ -2759,6 +2833,15 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                                     <span className="bg-slate-100 text-slate-700 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold shrink-0">{qidx + 1}</span>
                                     
                                     <div className="flex-1 space-y-1 text-xs">
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                                          q.type === "isian"
+                                            ? "bg-amber-100 text-amber-800"
+                                            : "bg-indigo-100 text-indigo-800"
+                                        }`}>
+                                          {q.type === "isian" ? "Isian / Essay" : "Pilihan Ganda"}
+                                        </span>
+                                      </div>
                                       <p className="font-semibold text-slate-800">{q.text}</p>
                                       
                                       {q.imageUrl && (
@@ -2772,12 +2855,18 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
                                         </div>
                                       )}
 
-                                      <div className="grid grid-cols-2 gap-1.5 pt-1.5 text-[11px] text-slate-500">
-                                        <div className={q.correctAnswer === 0 ? "text-indigo-600 font-semibold" : ""}>A. {q.options[0]}</div>
-                                        <div className={q.correctAnswer === 1 ? "text-indigo-600 font-semibold" : ""}>B. {q.options[1]}</div>
-                                        <div className={q.correctAnswer === 2 ? "text-indigo-600 font-semibold" : ""}>C. {q.options[2]}</div>
-                                        <div className={q.correctAnswer === 3 ? "text-indigo-600 font-semibold" : ""}>D. {q.options[3]}</div>
-                                      </div>
+                                      {q.type === "isian" ? (
+                                        <div className="p-2 bg-amber-50/50 rounded-lg border border-amber-100/50 text-[11px] text-amber-900 mt-1.5">
+                                          <span className="font-bold text-amber-800">Kunci Jawaban:</span> <code className="bg-white px-1 py-0.5 rounded border border-amber-150 font-mono text-amber-700 font-bold">{String(q.correctAnswer)}</code>
+                                        </div>
+                                      ) : (
+                                        <div className="grid grid-cols-2 gap-1.5 pt-1.5 text-[11px] text-slate-500">
+                                          <div className={q.correctAnswer === 0 ? "text-indigo-600 font-semibold" : ""}>A. {q.options?.[0]}</div>
+                                          <div className={q.correctAnswer === 1 ? "text-indigo-600 font-semibold" : ""}>B. {q.options?.[1]}</div>
+                                          <div className={q.correctAnswer === 2 ? "text-indigo-600 font-semibold" : ""}>C. {q.options?.[2]}</div>
+                                          <div className={q.correctAnswer === 3 ? "text-indigo-600 font-semibold" : ""}>D. {q.options?.[3]}</div>
+                                        </div>
+                                      )}
 
                                       <div className="text-[10px] text-slate-400 pt-2 flex items-center justify-between">
                                         <span>Nilai Poin: {q.points}</span>
@@ -3288,6 +3377,7 @@ export default function GuruDashboard({ user, onLogout }: GuruDashboardProps) {
       {selectedResult && (
         <AttemptDetailModal
           result={selectedResult}
+          isTeacher={true}
           onClose={() => setSelectedResult(null)}
         />
       )}

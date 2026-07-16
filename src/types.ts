@@ -57,10 +57,11 @@ export interface Student {
 
 export interface Question {
   id: string;
+  type?: "pilihan_ganda" | "isian"; // Default is "pilihan_ganda"
   text: string;
   imageUrl?: string;
-  options: string[]; // typically 4 options (A, B, C, D)
-  correctAnswer: number; // 0, 1, 2, 3
+  options?: string[]; // typically 4 options (A, B, C, D) for pilihan_ganda
+  correctAnswer: number | string; // 0, 1, 2, 3 for pilihan_ganda; string keyword/text for isian
   points: number;
   explanation?: string; // explanation for correct answer or incorrect choices
 }
@@ -105,13 +106,15 @@ export interface Result {
   studentClass: string;
   schoolId: string;
   schoolName: string;
-  answers: Record<string, number>; // questionId -> chosen index (0-3)
+  answers: Record<string, number | string>; // questionId -> chosen index (0-3) or essay text
   score: number;
   totalQuestions: number;
   correctCount: number;
   submittedAt: string;
   status: "started" | "submitted";
   durationSpent: number; // in seconds
+  essayScores?: Record<string, number>; // questionId -> custom points assigned by teacher
+  gradedByTeacher?: boolean; // flag if teacher has reviewed/saved manual grading
 }
 
 export interface Notification {
