@@ -124,12 +124,11 @@ export default function PwaInstaller() {
             <img 
               src="/logo.svg" 
               alt="Logo" 
-              className="w-7 h-7 object-contain rounded-md"
+              className="w-7 h-7 object-contain rounded-md crisp-image"
               referrerPolicy="no-referrer"
             />
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white shadow-xs"></span>
             </span>
           </div>
 
@@ -212,7 +211,7 @@ export default function PwaInstaller() {
               
               {/* General Info */}
               <div className="p-3 bg-amber-50 rounded-2xl border border-amber-100 text-[11px] sm:text-xs text-amber-800 leading-relaxed flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <span>
                   Aplikasi ini dirancang sebagai <strong>PWA (Progressive Web App)</strong>. Anda bisa langsung menambahkannya ke layar utama perangkat Anda tanpa perlu mengunduh dari Play Store / App Store.
                 </span>

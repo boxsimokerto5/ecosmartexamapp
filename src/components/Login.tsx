@@ -347,7 +347,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <img 
               src="/logo.svg" 
               alt="Eco Smart Exam Logo" 
-              className="w-12 h-12 object-contain rounded-xl"
+              className="w-12 h-12 object-contain rounded-xl crisp-image"
               referrerPolicy="no-referrer"
             />
           </div>
