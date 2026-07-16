@@ -164,13 +164,33 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
     e.preventDefault();
     if (!editingSubSchool) return;
 
+    let finalActive = subActive;
+    let finalSuspended = subSuspended;
+
+    // 1. If subscription expired
+    if (subPackage && subExpiresAt) {
+      const expiresTime = new Date(subExpiresAt).getTime();
+      if (expiresTime < Date.now()) {
+        finalActive = false;
+        finalSuspended = true;
+      }
+    } else if (!subPackage) {
+      finalActive = false;
+      finalSuspended = true;
+    }
+
+    // 2. If status sekolah tidak diaktifkan, otomatis tersuspend
+    if (!finalActive) {
+      finalSuspended = true;
+    }
+
     try {
       const updatedSchoolDoc = {
         ...editingSubSchool,
         subscriptionPackage: subPackage || null,
-        subscriptionActive: subActive,
+        subscriptionActive: finalActive,
         subscriptionExpiresAt: subPackage ? new Date(subExpiresAt).toISOString() : null,
-        suspended: subSuspended,
+        suspended: finalSuspended,
         addonCount: Number(subAddonCount),
         addonExpiresAt: subAddonCount > 0 ? new Date(subAddonExpiresAt).toISOString() : null
       };
@@ -186,6 +206,16 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
 
   const handleToggleSuspendDirect = async (school: School) => {
     const nextStatus = !school.suspended;
+
+    // Check if trying to unsuspend but subscription is expired or inactive
+    if (!nextStatus) {
+      const hasExpired = school.subscriptionExpiresAt && new Date(school.subscriptionExpiresAt).getTime() < Date.now();
+      if (school.subscriptionActive === false || !school.subscriptionPackage || hasExpired) {
+        alert("Tidak dapat mengaktifkan kembali sekolah karena status langganan tidak aktif atau masa berlangganan telah habis. Harap perbarui masa langganan terlebih dahulu.");
+        return;
+      }
+    }
+
     const actionText = nextStatus ? "MENANGGUHKAN (SUSPEND)" : "MENGAKTIFKAN KEMBALI";
     const confirmed = window.confirm(`Apakah Anda yakin ingin ${actionText} sekolah "${school.name}"?`);
     if (!confirmed) return;
@@ -248,8 +278,42 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
     // Subscribe to Schools
     const unsubSchools = onSnapshot(collection(db, "schools"), (snap) => {
       const list: School[] = [];
-      snap.forEach((doc) => {
-        list.push({ ...doc.data(), id: doc.id } as School);
+      const now = Date.now();
+      
+      snap.forEach((d) => {
+        const school = { ...d.data(), id: d.id } as School;
+        let needsUpdate = false;
+        let updatedFields: Partial<School> = {};
+
+        // 1. If subscription expired
+        if (school.subscriptionExpiresAt) {
+          const expiresTime = new Date(school.subscriptionExpiresAt).getTime();
+          if (expiresTime < now) {
+            if (school.subscriptionActive !== false || school.suspended !== true) {
+              updatedFields.subscriptionActive = false;
+              updatedFields.suspended = true;
+              needsUpdate = true;
+            }
+          }
+        }
+
+        // 2. If status sekolah tidak diaktifkan, otomatis tersuspend
+        if (school.subscriptionActive === false && school.suspended !== true) {
+          updatedFields.suspended = true;
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          const updatedSchool = { ...school, ...updatedFields };
+          list.push(updatedSchool);
+          
+          // Background update to Firestore
+          setDoc(doc(db, "schools", d.id), updatedFields, { merge: true }).catch((err) => {
+            console.error("Auto-sync school suspension error:", d.id, err);
+          });
+        } else {
+          list.push(school);
+        }
       });
       setSchools(list);
       schoolsLoaded = true;
@@ -281,6 +345,43 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
       clearTimeout(timeout);
     };
   }, []);
+
+  // Periodic check to auto-expire schools in real-time
+  useEffect(() => {
+    if (schools.length === 0) return;
+
+    const intervalId = setInterval(() => {
+      const now = Date.now();
+      schools.forEach((school) => {
+        let needsUpdate = false;
+        let updatedFields: Partial<School> = {};
+
+        if (school.subscriptionExpiresAt) {
+          const expiresTime = new Date(school.subscriptionExpiresAt).getTime();
+          if (expiresTime < now) {
+            if (school.subscriptionActive !== false || school.suspended !== true) {
+              updatedFields.subscriptionActive = false;
+              updatedFields.suspended = true;
+              needsUpdate = true;
+            }
+          }
+        }
+
+        if (school.subscriptionActive === false && school.suspended !== true) {
+          updatedFields.suspended = true;
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          setDoc(doc(db, "schools", school.id), updatedFields, { merge: true }).catch((err) => {
+            console.error("Auto-expiry timer update failed:", school.id, err);
+          });
+        }
+      });
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [schools]);
 
   const handleCreateSchool = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -966,7 +1067,14 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
                 </label>
                 <select
                   value={subPackage}
-                  onChange={(e) => setSubPackage(e.target.value as any)}
+                  onChange={(e) => {
+                    const val = e.target.value as any;
+                    setSubPackage(val);
+                    if (!val) {
+                      setSubActive(false);
+                      setSubSuspended(true);
+                    }
+                  }}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">-- Tanpa Paket / Non-Aktif --</option>
@@ -987,9 +1095,14 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
                 </div>
                 <input
                   type="checkbox"
-                  checked={subSuspended}
-                  onChange={(e) => setSubSuspended(e.target.checked)}
-                  className="w-4 h-4 text-rose-600 border-rose-300 rounded focus:ring-rose-500 cursor-pointer"
+                  checked={!subActive ? true : subSuspended}
+                  disabled={!subActive}
+                  onChange={(e) => {
+                    if (subActive) {
+                      setSubSuspended(e.target.checked);
+                    }
+                  }}
+                  className="w-4 h-4 text-rose-600 border-rose-300 rounded focus:ring-rose-500 cursor-pointer disabled:opacity-55"
                 />
               </div>
 
@@ -1000,7 +1113,13 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
                     <input
                       type="checkbox"
                       checked={subActive}
-                      onChange={(e) => setSubActive(e.target.checked)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setSubActive(val);
+                        if (!val) {
+                          setSubSuspended(true);
+                        }
+                      }}
                       className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
                     />
                   </div>
