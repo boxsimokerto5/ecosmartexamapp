@@ -405,6 +405,10 @@ export default function SuperAdminDashboard({ user, onLogout }: SuperAdminDashbo
       id: formattedId,
       name: schoolName.trim(),
       address: schoolAddress.trim(),
+      subscriptionPackage: "free_trial",
+      subscriptionActive: true,
+      subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Default 30 hari free trial
+      suspended: false,
       createdAt: new Date().toISOString()
     };
 
